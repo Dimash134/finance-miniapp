@@ -1,0 +1,720 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Финансы — MiniApp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root{
+      --green:#4caf50; --green-2:#2e7d32; --bg:#f6f9fc; --red:#d32f2f;
+      --card:#ffffff; --muted:#777; --line:#e7e7e7; --danger-bg:#ffebee; --danger-text:#b71c1c;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; font-family:Arial, sans-serif; background:var(--bg);
+      padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .top-bar{position:sticky; top:0; z-index:100; display:flex; gap:12px; align-items:center; justify-content:space-between;
+      background:var(--green); color:#fff; padding:10px 16px;}
+    .branch-select{background:#fff; color:#111; border:0; border-radius:8px; padding:8px 10px; min-width:160px; font-size:14px;}
+    .menu-button{background:#fff; color:var(--green); border:0; border-radius:8px; padding:8px 12px; font-weight:700; cursor:pointer;}
+
+    .side-menu{position:fixed; top:0; right:-270px; width:270px; height:100%; background:#fff; box-shadow:-2px 0 10px rgba(0,0,0,.15);
+      padding:18px; transition:right .25s ease; z-index:1000;}
+    .side-menu.open{right:0}
+    .side-menu h3{margin:0 0 10px}
+    .side-menu button{display:block; width:100%; margin:8px 0; padding:12px; font-size:16px; background:#f2f2f2; border:none; border-radius:10px; cursor:pointer}
+    .overlay{position:fixed; inset:0; background:rgba(0,0,0,.1); opacity:0; pointer-events:none; transition:opacity .2s; z-index:900}
+    .overlay.show{opacity:1; pointer-events:auto}
+
+    .container{padding:16px; max-width:700px; margin:0 auto}
+    .balance-box{background:#e8f5e9; color:var(--green-2); border-radius:10px; padding:16px; text-align:center; font-size:22px; font-weight:800;}
+
+    .tabs{display:flex; gap:8px; justify-content:center; margin:14px 0 8px; flex-wrap:wrap}
+    .tab{padding:8px 14px; background:#e0e0e0; border-radius:18px; cursor:pointer; font-weight:700}
+    .tab.active{background:var(--green); color:#fff}
+
+    .controls{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:8px}
+    .controls input, .controls button, .controls select{
+      padding:10px 12px; border-radius:8px; border:1px solid #ddd; font-size:14px; background:#fff; min-height:40px;
+    }
+    .controls button{cursor:pointer; border:1px solid #ccc}
+
+    .period-label{text-align:center; font-weight:800; margin:10px 0; color:#111}
+
+    .kpis{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; max-width:720px; margin:0 auto 10px}
+    .kpi{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; text-align:center}
+    .kpi .label{font-size:12px; color:var(--muted); margin-bottom:4px}
+    .kpi .value{font-size:18px; font-weight:800}
+    .kpi.income .value{color:var(--green-2)} .kpi.expense .value{color:var(--red)} .kpi.net .value{color:#0f3d62}
+
+    table{width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden}
+    td{padding:10px 12px; border-bottom:1px solid var(--line); font-size:15px}
+    tr:last-child td{border-bottom:none}
+    tr.positive td:nth-child(2){color:var(--green-2); font-weight:800}
+    tr.negative td:nth-child(2){color:var(--red); font-weight:800}
+    tr.total td{font-weight:900; background:#fafafa; border-top:2px solid var(--line)}
+
+    /* Платёжный календарь — карточки */
+    #pk-header{border:0; background:transparent; border-collapse:separate; border-spacing:0 8px}
+    #pk-header td{background:#fff; border:1px solid var(--line); padding:12px 14px; font-size:15px; font-weight:700;}
+    #pk-header td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
+    #pk-header td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px; text-align:right}
+
+    #pk-table{border:0; background:transparent; border-collapse:separate; border-spacing:0 8px;}
+    #pk-table td{background:#fff; border:1px solid var(--line); padding:12px 14px; font-size:15px;}
+    #pk-table td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
+    #pk-table td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
+
+    .pk-pos{color:var(--green-2); font-weight:700}
+    .pk-neg{color:var(--red); font-weight:700}
+    .pk-bad{background:var(--danger-bg) !important; color:var(--danger-text); font-weight:800}
+
+    .pk-inout{display:flex; flex-direction:column; gap:6px; align-items:center; justify-content:center;}
+    .pk-inout .pk-income{ color:var(--green-2); font-weight:800; line-height:1; }
+    .pk-inout .pk-expense{ color:var(--red);     font-weight:800; line-height:1; }
+
+    /* Отчёты (PDF) */
+    .report-card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+    .report-title{ font-weight:800; margin-bottom:8px; }
+    .report-files{ display:flex; flex-direction:column; gap:8px; }
+    .report-file{
+      display:flex; align-items:center; gap:10px;
+      padding:8px 10px; border:1px solid var(--line); border-radius:8px;
+      background:#fafafa;
+    }
+    .report-file a{ flex:1; text-decoration:none; color:#0f3d62; }
+    .rep-chk{ display:none; }
+    .rep-chk.show{ display:inline-block; }
+
+    @media (max-width:560px){
+      .top-bar{padding:8px 12px}
+      .branch-select{min-width:130px; font-size:14px}
+      .menu-button{padding:8px 10px; font-size:14px}
+      .container{padding:12px}
+      .balance-box{font-size:20px; padding:14px}
+      .tabs{gap:6px; margin:12px 0 8px}
+      .tab{padding:6px 10px; font-size:14px}
+      .controls{gap:6px; margin-bottom:6px}
+      .kpis{grid-template-columns:1fr; gap:8px}
+      .kpi .value{font-size:16px}
+      td:first-child{max-width:70vw; word-break:break-word}
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <select id="branch-select" class="branch-select">
+      <option value="Private" selected>Private</option>
+      <option value="Highschool">Highschool</option>
+      <option value="Academy">Academy</option>
+    </select>
+    <button class="menu-button" id="menuBtn">Меню</button>
+  </div>
+
+  <div class="overlay" id="overlay"></div>
+  <div class="side-menu" id="side-menu">
+    <h3>Разделы</h3>
+    <button data-section="students">Ученики</button>
+    <button data-section="staff">Сотрудники</button>
+    <button data-section="calendar">Платежный календарь</button>
+    <button data-section="report">Отчет</button>
+  </div>
+
+  <div class="container">
+    <div class="balance-box" id="balance-box">Текущий остаток: Загрузка...</div>
+
+    <!-- Кошельки -->
+    <div id="wallets-section" style="display:none; padding:10px;">
+      <div style="text-align:left; margin-bottom:10px;">
+        <button onclick="showMain()">← Назад</button>
+      </div>
+      <div id="wallets-list"></div>
+    </div>
+
+    <!-- ДДС -->
+    <div id="main-section">
+      <div class="tabs">
+        <div class="tab active" data-mode="текущий">Текущий</div>
+        <div class="tab" data-mode="месяц">Месяц</div>
+        <div class="tab" data-mode="дата">Дата</div>
+      </div>
+
+      <div class="controls" id="controls-date" style="display:none;">
+        <input type="date" id="date-input" />
+        <button onclick="setDate()">Установить дату</button>
+      </div>
+
+      <div class="controls" id="controls-month" style="display:none;">
+        <select id="month-select"></select>
+        <button onclick="setMonth()">Установить месяц</button>
+      </div>
+
+      <div class="period-label" id="period-label">Отчёт на сегодня</div>
+
+      <div class="kpis">
+        <div class="kpi income"><div class="label">Доход</div><div class="value" id="kpi-income">0 ₸</div></div>
+        <div class="kpi expense"><div class="label">Расход</div><div class="value" id="kpi-expense">0 ₸</div></div>
+        <div class="kpi net"><div class="label">Чистый результат</div><div class="value" id="kpi-net">0 ₸</div></div>
+      </div>
+
+      <table id="summary-table"></table>
+    </div>
+
+    <!-- Ученики -->
+    <div id="students-section" style="display:none; padding:10px;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <button onclick="closeStudents()">← Назад</button>
+        <div style="font-weight:700;">Ученики — <span id="students-branch-label">Private</span></div>
+      </div>
+
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px;">
+        <button id="students-tab-current" class="tab active" style="padding:6px 12px; border-radius:16px;">Текущий</button>
+        <button id="students-tab-month"   class="tab"        style="padding:6px 12px; border-radius:16px;">Месяц</button>
+
+        <div id="students-month-controls" style="display:none; margin-left:6px;">
+          <select id="students-month-select"></select>
+          <button onclick="studentsSetMonth()" style="padding:6px 8px; border:1px solid #ccc; border-radius:6px; background:#fff;">Установить месяц</button>
+        </div>
+      </div>
+
+      <div id="students-period-label" style="font-weight:600; margin-bottom:8px;">Отчет (текущий)</div>
+      <table id="students-table"></table>
+    </div>
+
+    <!-- Сотрудники -->
+    <div id="staff-section" style="display:none; padding:10px;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <button onclick="closeStaff()">← Назад</button>
+        <div style="font-weight:700;">Сотрудники — <span id="staff-branch-label">Private</span></div>
+      </div>
+
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px;">
+        <button id="staff-tab-current" class="tab active" style="padding:6px 12px; border-radius:16px;">Текущий</button>
+        <button id="staff-tab-month"   class="tab"        style="padding:6px 12px; border-radius:16px;">Месяц</button>
+
+        <div id="staff-month-controls" style="display:none; margin-left:6px;">
+          <select id="staff-month-select"></select>
+          <button onclick="staffSetMonth()" style="padding:6px 8px; border:1px solid #ccc; border-radius:6px; background:#fff;">Установить месяц</button>
+        </div>
+      </div>
+
+      <div id="staff-period-label" style="font-weight:600; margin-bottom:8px;">Отчет (текущий)</div>
+      <table id="staff-table"></table>
+    </div>
+
+    <!-- Платёжный календарь -->
+    <div id="pk-section" style="display:none; padding:10px;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <button onclick="closePK()">← Назад</button>
+        <div style="font-weight:700;">Платежный календарь — <span id="pk-branch-label">Private</span></div>
+      </div>
+      <table id="pk-header" style="margin-bottom:10px;"></table>
+      <table id="pk-table"></table>
+    </div>
+
+    <!-- Отчёт (единый PDF-архив) -->
+    <div id="reports-section" style="display:none; padding:10px;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <button onclick="closeReports()">← Назад</button>
+        <div style="font-weight:700;">Отчёт — общий</div>
+      </div>
+
+      <div id="reports-list" style="display:flex; flex-direction:column; gap:12px;"></div>
+
+      <!-- Форма загрузки / удаления -->
+      <div id="reports-upload" style="margin-top:16px;">
+        <h4 style="margin:6px 0;">Загрузить PDF</h4>
+        <form id="upload-form" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <input type="month" id="upload-ym" required style="padding:8px; border:1px solid #ddd; border-radius:6px;">
+          <input type="file" id="upload-file" accept="application/pdf" required style="padding:8px;">
+          <button type="submit" class="menu-button" style="padding:8px 12px;">Загрузить</button>
+          <button type="button" id="delete-btn" class="menu-button" style="padding:8px 12px; background:#fff; color:#b71c1c; border:1px solid #e2bcbc;">Удалить</button>
+        </form>
+        <div id="upload-msg" style="margin-top:6px; color:#2e7d32; font-weight:700;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const MONTHS = [
+      {label:'Сентябрь', value:9}, {label:'Октябрь', value:10}, {label:'Ноябрь', value:11}, {label:'Декабрь', value:12},
+      {label:'Январь', value:1}, {label:'Февраль', value:2}, {label:'Март', value:3}, {label:'Апрель', value:4},
+      {label:'Май', value:5}, {label:'Июнь', value:6},
+    ];
+    function fillMonthSelect(sel){
+      sel.innerHTML = MONTHS.map(m=>`<option value="${m.value}">${m.label}</option>`).join('');
+    }
+
+    let currentMode = 'текущий';
+    let currentBranch = 'Private';
+    let studentsMode = 'current';
+    let staffMode = 'current';
+
+    // === меню
+    const menu = document.getElementById('side-menu');
+    const overlay = document.getElementById('overlay');
+    document.getElementById('menuBtn').addEventListener('click', (e)=>{ e.stopPropagation(); toggleMenu(true); });
+    overlay.addEventListener('click', ()=>toggleMenu(false));
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') toggleMenu(false); });
+    function toggleMenu(open){
+      const toOpen = open ?? !menu.classList.contains('open');
+      if(toOpen){ menu.classList.add('open'); overlay.classList.add('show'); }
+      else{ menu.classList.remove('open'); overlay.classList.remove('show'); }
+    }
+    menu.querySelectorAll('button[data-section]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const sec = btn.dataset.section; toggleMenu(false);
+        if (sec==='students') openStudents();
+        else if (sec==='staff') openStaff();
+        else if (sec==='calendar') openPK();
+        else if (sec==='report') openReports();
+      });
+    });
+
+    const branchSelect = document.getElementById('branch-select');
+    currentBranch = branchSelect.value || 'Private';
+    branchSelect.addEventListener('change', ()=>{
+      currentBranch = branchSelect.value;
+
+      // обновляем числовые данные
+      refreshBalance(); loadSummary(currentMode); updatePeriodLabel(currentMode);
+
+      // ОБНОВЛЯЕМ ЗАГОЛОВКИ ОТКРЫТЫХ РАЗДЕЛОВ
+      if (isVisible('students-section')) {
+        document.getElementById('students-branch-label').innerText = currentBranch;
+        loadStudents();
+      }
+      if (isVisible('staff-section')) {
+        document.getElementById('staff-branch-label').innerText = currentBranch;
+        loadStaff();
+      }
+      if (isVisible('pk-section')) {
+        document.getElementById('pk-branch-label').innerText = currentBranch;
+        loadPK();
+      }
+      if (isVisible('reports-section'))  loadReports();
+    });
+
+    function isVisible(id){ return document.getElementById(id).style.display==='block'; }
+    function showMain(){
+      ['wallets-section','students-section','staff-section','pk-section','reports-section']
+        .forEach(id=>document.getElementById(id).style.display='none');
+      document.getElementById('main-section').style.display = 'block';
+      document.getElementById('balance-box').style.display = 'block';
+    }
+    function showReport(){ showMain(); }
+    function parseNumber(s){
+      if(typeof s!=='string') return Number(s)||0;
+      const cleaned = s.replace(/[^\d,.\- ]/g,'').replace(/\s/g,'');
+      if(cleaned.includes(',') && !cleaned.includes('.')) return parseFloat(cleaned.replace(',','.'))||0;
+      return parseFloat(cleaned)||0;
+    }
+    const fmt = n => (Number.isFinite(n)? n.toLocaleString('ru-RU'): String(n));
+    const fmt2 = n => (Number.isFinite(n)? n.toLocaleString('ru-RU',{minimumFractionDigits:2, maximumFractionDigits:2}) : String(n));
+
+    // === баланс / ДДС
+    function refreshBalance(){
+      fetch(`/balance?branch=${encodeURIComponent(currentBranch)}`)
+        .then(r=>r.json())
+        .then(data=>{
+          const box=document.getElementById('balance-box');
+          box.textContent = `Текущий остаток (${currentBranch}): ${data?.balance ?? '—'} ₸`;
+          box.onclick = ()=>{ if(data?.wallets){ showWallets(data.wallets); } };
+        });
+    }
+    function showWallets(wallets){
+      document.getElementById('main-section').style.display='none';
+      document.getElementById('students-section').style.display='none';
+      document.getElementById('staff-section').style.display='none';
+      document.getElementById('pk-section').style.display='none';
+      document.getElementById('reports-section').style.display='none';
+      document.getElementById('wallets-section').style.display='block';
+      document.getElementById('balance-box').style.display='none';
+
+      const list=document.getElementById('wallets-list');
+      list.innerHTML = wallets.map(([label, amount])=>
+        `<div style="margin:6px 0;"><strong>${label}</strong>: ${amount} ₸</div>`
+      ).join('');
+    }
+
+    function buildSummaryTable(rows, net){
+      const tb=document.getElementById('summary-table');
+      const body = rows.map(r=>{
+        const name=r[0]??''; const raw=r[1]??''; const val=parseNumber(raw);
+        const cls = val>0?'positive':(val<0?'negative':'');
+        return `<tr class="${cls}"><td>${name}</td><td style="text-align:right">${fmt(val)}</td></tr>`;
+      }).join('');
+      tb.innerHTML = body + `<tr class="total"><td>ИТОГО (чистый результат)</td><td style="text-align:right">${fmt(net)}</td></tr>`;
+    }
+
+    function loadSummary(mode){
+      fetch(`/summary?mode=${encodeURIComponent(mode)}&branch=${encodeURIComponent(currentBranch)}`)
+        .then(r=>r.json())
+        .then(rows=>{
+          let income=0, expense=0;
+          rows.forEach(r=>{
+            if(r.length<2) return;
+            const v=parseNumber(r[1]);
+            if(v>0) income+=v; else expense+=Math.abs(v);
+          });
+          const net = income - expense;
+          document.getElementById('kpi-income').textContent  = `${fmt(income)} ₸`;
+          document.getElementById('kpi-expense').textContent = `${fmt(expense)} ₸`;
+          document.getElementById('kpi-net').textContent     = `${fmt(net)} ₸`;
+          buildSummaryTable(rows, net);
+        });
+    }
+
+    function updatePeriodLabel(mode){
+      const label=document.getElementById('period-label');
+      const today=(()=>{const d=new Date(); const t=n=>n<10?`0${n}`:n; return `${t(d.getDate())}.${t(d.getMonth()+1)}.${d.getFullYear()}`;})();
+      if(mode==='текущий') label.textContent = `Отчёт на сегодня (${currentBranch}): ${today}`;
+      else if(mode==='дата'){
+        const v=document.getElementById('date-input').value;
+        if(v){ const [y,m,d]=v.split('-'); label.textContent=`Отчёт на ${d}.${m}.${y} (${currentBranch})`; }
+        else label.textContent=`Отчёт на выбранную дату (${currentBranch})`;
+      }else{
+        const mSel=document.getElementById('month-select'); const lab=mSel.options[mSel.selectedIndex]?.text||'месяц';
+        label.textContent = `Отчёт за месяц: ${lab} (${currentBranch})`;
+      }
+    }
+
+    function activateMainTab(mode){
+      document.querySelectorAll('#main-section .tab').forEach(t=>t.classList.toggle('active', t.dataset.mode===mode));
+      document.getElementById('controls-date').style.display  = (mode==='дата')   ? 'flex' : 'none';
+      document.getElementById('controls-month').style.display = (mode==='месяц')  ? 'flex' : 'none';
+    }
+
+    function setDate(){
+      const v=document.getElementById('date-input').value;
+      if(!v) return alert('Выберите дату');
+      const [y,m,d]=v.split('-'); const formatted=`${d}.${m}.${y}`;
+      fetch(`/set-date?value=${encodeURIComponent(formatted)}&branch=${encodeURIComponent(currentBranch)}`)
+        .then(()=>{ currentMode='дата'; activateMainTab('дата'); loadSummary('дата'); updatePeriodLabel('дата'); document.activeElement?.blur(); });
+    }
+    function setMonth(){
+      const m=document.getElementById('month-select').value;
+      fetch(`/set-month?value=${encodeURIComponent(m)}&branch=${encodeURIComponent(currentBranch)}`)
+        .then(()=>{ currentMode='месяц'; activateMainTab('месяц'); loadSummary('месяц'); updatePeriodLabel('месяц'); document.activeElement?.blur(); });
+    }
+
+    // ===== Ученики
+    function openStudents(){
+      document.getElementById('main-section').style.display='none';
+      document.getElementById('wallets-section').style.display='none';
+      document.getElementById('staff-section').style.display='none';
+      document.getElementById('pk-section').style.display='none';
+      document.getElementById('reports-section').style.display='none';
+      document.getElementById('students-section').style.display='block';
+      document.getElementById('balance-box').style.display='none';
+
+      document.getElementById('students-branch-label').innerText=currentBranch;
+      document.getElementById('students-tab-current').classList.add('active');
+      document.getElementById('students-tab-month').classList.remove('active');
+      document.getElementById('students-month-controls').style.display='none';
+      studentsMode='current';
+      document.getElementById('students-period-label').innerText='Отчет (текущий)';
+      loadStudents();
+    }
+    function closeStudents(){ showMain(); }
+    function studentsSetMonth(){
+      const m=document.getElementById('students-month-select').value;
+      fetch(`/students-set-month?value=${encodeURIComponent(m)}&branch=${encodeURIComponent(currentBranch)}`)
+        .then(()=>{ loadStudents(); document.activeElement?.blur(); });
+    }
+    function loadStudents(){
+      fetch(`/students?branch=${encodeURIComponent(currentBranch)}&mode=${encodeURIComponent(studentsMode)}`)
+        .then(r=>r.json())
+        .then(d=>{
+          const rows=d?.rows||[];
+          const tb=document.getElementById('students-table');
+          tb.innerHTML = rows.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join('');
+        });
+    }
+    document.getElementById('students-tab-current').addEventListener('click', ()=>{
+      studentsMode='current';
+      document.getElementById('students-tab-current').classList.add('active');
+      document.getElementById('students-tab-month').classList.remove('active');
+      document.getElementById('students-month-controls').style.display='none';
+      document.getElementById('students-period-label').innerText='Отчет (текущий)';
+      loadStudents();
+    });
+    document.getElementById('students-tab-month').addEventListener('click', ()=>{
+      studentsMode='month';
+      document.getElementById('students-tab-current').classList.remove('active');
+      document.getElementById('students-tab-month').classList.add('active');
+      document.getElementById('students-month-controls').style.display='inline-flex';
+      document.getElementById('students-period-label').innerText='Отчет (за выбранный месяц)';
+      loadStudents();
+    });
+
+    // ===== Сотрудники
+    function openStaff(){
+      document.getElementById('main-section').style.display='none';
+      document.getElementById('wallets-section').style.display='none';
+      document.getElementById('students-section').style.display='none';
+      document.getElementById('pk-section').style.display='none';
+      document.getElementById('reports-section').style.display='none';
+      document.getElementById('staff-section').style.display='block';
+      document.getElementById('balance-box').style.display='none';
+
+      document.getElementById('staff-branch-label').innerText=currentBranch;
+      document.getElementById('staff-tab-current').classList.add('active');
+      document.getElementById('staff-tab-month').classList.remove('active');
+      document.getElementById('staff-month-controls').style.display='none';
+      staffMode='current';
+      document.getElementById('staff-period-label').innerText='Отчет (текущий)';
+      loadStaff();
+    }
+    function closeStaff(){ showMain(); }
+    function staffSetMonth(){
+      const m=document.getElementById('staff-month-select').value;
+      fetch(`/staff-set-month?value=${encodeURIComponent(m)}&branch=${encodeURIComponent(currentBranch)}`)
+        .then(()=>{ loadStaff(); document.activeElement?.blur(); });
+    }
+    function loadStaff(){
+      fetch(`/staff?branch=${encodeURIComponent(currentBranch)}&mode=${encodeURIComponent(staffMode)}`)
+        .then(r=>r.json())
+        .then(d=>{
+          const rows=d?.rows||[];
+          const tb=document.getElementById('staff-table');
+          tb.innerHTML = rows.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join('');
+        });
+    }
+    document.getElementById('staff-tab-current').addEventListener('click', ()=>{
+      staffMode='current';
+      document.getElementById('staff-tab-current').classList.add('active');
+      document.getElementById('staff-tab-month').classList.remove('active');
+      document.getElementById('staff-month-controls').style.display='none';
+      document.getElementById('staff-period-label').innerText='Отчет (текущий)';
+      loadStaff();
+    });
+    document.getElementById('staff-tab-month').addEventListener('click', ()=>{
+      staffMode='month';
+      document.getElementById('staff-tab-current').classList.remove('active');
+      document.getElementById('staff-tab-month').classList.add('active');
+      document.getElementById('staff-month-controls').style.display='inline-flex';
+      document.getElementById('staff-period-label').innerText='Отчет (за выбранный месяц)';
+      loadStaff();
+    });
+
+    // ===== Платёжный календарь (теперь для всех филиалов)
+    function openPK(){
+      document.getElementById('main-section').style.display='none';
+      document.getElementById('wallets-section').style.display='none';
+      document.getElementById('students-section').style.display='none';
+      document.getElementById('staff-section').style.display='none';
+      document.getElementById('reports-section').style.display='none';
+      document.getElementById('pk-section').style.display='block';
+      document.getElementById('balance-box').style.display='none';
+      loadPK();
+    }
+    function closePK(){ showMain(); }
+    function loadPK(){
+      // заголовок с названием филиала
+      document.getElementById('pk-branch-label').innerText = currentBranch;
+
+      fetch(`/pk?branch=${encodeURIComponent(currentBranch)}`)
+        .then(async r=>{ if(!r.ok){ const t=await r.json().catch(()=>({error:'Ошибка'})); throw new Error(t.error||'Ошибка'); } return r.json(); })
+        .then(d=>{
+          const header = d?.header || [];
+          const table  = d?.table  || [];
+
+          const htbl = document.getElementById('pk-header');
+          htbl.innerHTML = header.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join('');
+
+          const tb = document.getElementById('pk-table');
+          let html = '';
+          for (let i=0; i<table.length; ){
+            const r1 = table[i] || [];
+            const date = (r1[0] ?? '').trim();
+            const incomeRaw = r1[1] ?? '';
+            const balRaw1   = r1[2] ?? '';
+            let income  = parseNumber(incomeRaw);
+            let expense = 0;
+            let balance = Number.isFinite(parseNumber(balRaw1)) ? parseNumber(balRaw1) : null;
+
+            const r2 = table[i+1] || [];
+            const nextIsSameDate = !r2[0] || (r2[0]+'').trim()==='';
+            if (nextIsSameDate){
+              const expRaw = r2[1] ?? '';
+              const balRaw2 = r2[2] ?? '';
+              const expVal = parseNumber(expRaw);
+              if (Number.isFinite(expVal)) expense = expVal;
+              const b2 = parseNumber(balRaw2);
+              if (Number.isFinite(b2) && (balance===null || b2!==0)) balance = b2;
+              i += 2;
+            } else {
+              i += 1;
+            }
+            if (balance===null) balance = 0;
+
+            const balCls = balance < 0 ? 'pk-bad' : '';
+            html += `
+              <tr>
+                <td>${date}</td>
+                <td>
+                  <div class="pk-inout">
+                    <div class="pk-income">${Number.isFinite(income) ? fmt2(income) : (incomeRaw||'')}</div>
+                    <div class="pk-expense">${Number.isFinite(expense) ? fmt2(expense) : '0,00'}</div>
+                  </div>
+                </td>
+                <td class="${balCls}" style="text-align:right">${fmt2(balance)}</td>
+              </tr>`;
+          }
+          tb.innerHTML = html;
+        })
+        .catch(e=>alert(e.message));
+    }
+
+    // ===== Отчёты (PDF) — единые
+    let deleteMode = false;
+    const selectedForDel = new Set();
+
+    function openReports(){
+      document.getElementById('main-section').style.display='none';
+      document.getElementById('wallets-section').style.display='none';
+      document.getElementById('students-section').style.display='none';
+      document.getElementById('staff-section').style.display='none';
+      document.getElementById('pk-section').style.display='none';
+      document.getElementById('reports-section').style.display='block';
+      document.getElementById('balance-box').style.display='none';
+
+      deleteMode = false;
+      selectedForDel.clear();
+      updateDeleteButton();
+      loadReports();
+    }
+    function closeReports(){ showMain(); }
+
+    function renderReports(list){
+      const box = document.getElementById('reports-list');
+      if(!Array.isArray(list) || list.length===0){
+        box.innerHTML = '';
+        return;
+      }
+      const html = list.map(m => `
+        <div class="report-card">
+          <div class="report-title">${m.title}</div>
+          <div class="report-files">
+            ${m.files.map(f => `
+              <div class="report-file">
+                <input type="checkbox" class="rep-chk ${deleteMode?'show':''}" data-ym="${m.key}" data-name="${f.name}">
+                <a href="${f.url}" target="_blank" rel="noopener">${f.name}</a>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+      box.innerHTML = html;
+
+      document.querySelectorAll('.rep-chk').forEach(chk=>{
+        chk.addEventListener('change', ()=>{
+          const k = `${chk.dataset.ym}|${chk.dataset.name}`;
+          if(chk.checked) selectedForDel.add(k); else selectedForDel.delete(k);
+          updateDeleteButton();
+        });
+      });
+    }
+
+    function loadReports(){
+      fetch(`/reports`).then(r=>r.json()).then(d=>{
+        renderReports(d?.months||[]);
+      });
+    }
+
+    // загрузка
+    const uploadForm = document.getElementById('upload-form');
+    if (uploadForm){
+      uploadForm.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const ym = document.getElementById('upload-ym').value;
+        const file = document.getElementById('upload-file').files[0];
+        const msg = document.getElementById('upload-msg');
+        if(!ym || !file){ msg.textContent='Выбери месяц и файл.'; return; }
+        const fd = new FormData(); fd.append('ym', ym); fd.append('file', file);
+        const res = await fetch('/reports/upload', { method:'POST', body: fd });
+        if(res.ok){
+          msg.textContent = 'Файл загружен ✅';
+          document.getElementById('upload-file').value='';
+          loadReports();
+        }else{
+          const t = await res.json().catch(()=>({error:'Ошибка загрузки'}));
+          msg.textContent = `Ошибка: ${t.error || 'неизвестно'}`;
+          msg.style.color = '#b71c1c';
+        }
+      });
+    }
+
+    // удаление
+    const delBtn = document.getElementById('delete-btn');
+    delBtn.addEventListener('click', onDeleteButton);
+
+    function updateDeleteButton(){
+      if(!deleteMode){
+        delBtn.textContent = 'Удалить';
+      }else{
+        delBtn.textContent = `Удалить выбранные (${selectedForDel.size})`;
+      }
+    }
+
+    async function onDeleteButton(){
+      if(!deleteMode){
+        deleteMode = true;
+        selectedForDel.clear();
+        renderReports((await (await fetch('/reports')).json()).months||[]);
+        updateDeleteButton();
+        return;
+      }
+      if(selectedForDel.size===0){
+        deleteMode = false;
+        renderReports((await (await fetch('/reports')).json()).months||[]);
+        updateDeleteButton();
+        return;
+      }
+      if(!confirm('Удалить выбранные файлы?')) return;
+
+      for(const k of selectedForDel){
+        const [ym, name] = k.split('|');
+        await fetch('/reports/delete', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ym, name})
+        });
+      }
+      deleteMode = false;
+      selectedForDel.clear();
+      loadReports();
+      updateDeleteButton();
+    }
+
+    // ===== Инициализация
+    document.addEventListener('DOMContentLoaded', ()=>{
+      fillMonthSelect(document.getElementById('month-select'));
+      fillMonthSelect(document.getElementById('students-month-select'));
+      fillMonthSelect(document.getElementById('staff-month-select'));
+
+      document.querySelectorAll('#main-section .tab').forEach(tab=>{
+        tab.addEventListener('click', ()=>{
+          const mode=tab.dataset.mode; currentMode=mode;
+          activateMainTab(mode); loadSummary(mode); updatePeriodLabel(mode);
+        });
+      });
+
+      activateMainTab('текущий'); updatePeriodLabel('текущий');
+      refreshBalance(); loadSummary('текущий');
+
+      setInterval(()=>{
+        refreshBalance(); loadSummary(currentMode);
+        if(isVisible('students-section')) loadStudents();
+        if(isVisible('staff-section'))    loadStaff();
+        if(isVisible('pk-section'))       loadPK();
+        if(isVisible('reports-section'))  loadReports();
+      }, 30000);
+    });
+  </script>
+</body>
+</html>
