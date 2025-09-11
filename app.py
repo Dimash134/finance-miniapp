@@ -4,6 +4,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 from pathlib import Path
 import os
+import json
 import threading
 
 # ==== Telegram Bot (python-telegram-bot v20) ====
@@ -14,10 +15,25 @@ app = Flask(__name__)
 
 # ---------- Google Sheets ----------
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-creds = ServiceAccountCredentials.from_json_keyfile_name('googlesheet.json', scope)
+
+# Пытаемся взять сервисный ключ из переменной окружения (Render: Environment Group)
+GOOGLE_SA_JSON = os.getenv("GOOGLE_SA_JSON", "").strip()
+if GOOGLE_SA_JSON:
+    try:
+        # значение хранится как JSON-строка
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(GOOGLE_SA_JSON), scope)
+    except Exception:
+        # значение может быть «сырым» содержимым файла -> пишем во временный файл
+        tmp = Path("/tmp/googlesheet.json")
+        tmp.write_text(GOOGLE_SA_JSON, encoding="utf-8")
+        creds = ServiceAccountCredentials.from_json_keyfile_name(str(tmp), scope)
+else:
+    # локальный режим — берём файл из репозитория
+    creds = ServiceAccountCredentials.from_json_keyfile_name('googlesheet.json', scope)
+
 client = gspread.authorize(creds)
 
-# Книга "СВОД 25-26" — используется для учеников/сотрудников/ПК, как раньше
+# Книга "СВОД 25-26" — используется для учеников/сотрудников/ПК
 spreadsheet = client.open("СВОД 25-26")
 
 # Карта листов по филиалам (для учеников/сотрудников/ПК)
@@ -62,7 +78,7 @@ DDS_RANGES = {
 }
 
 # ---------- Общие PDF-отчёты ----------
-REPORTS_ROOT = Path("static") / "reports"
+REPORTS_ROOT = Path(os.getenv("REPORTS_DIR", "static/reports"))
 REPORTS_ROOT.mkdir(parents=True, exist_ok=True)
 
 RU_MONTHS = {
@@ -105,7 +121,7 @@ def upload_report():
     dst_dir.mkdir(parents=True, exist_ok=True)
     safe_name = file.filename.replace("/", "_").replace("\\", "_")
     file.save(dst_dir / safe_name)
-    return jsonify({"status": "ok"})
+    return jsonify({"status": "ок"})
 
 @app.route('/reports/delete', methods=['POST'])
 def delete_report():
@@ -126,6 +142,7 @@ def delete_report():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ---------- БАЗОВЫЕ СТРАНИЦЫ ----------
 @app.route('/')
 def home():
     return '📊 Finance MiniApp работает!'
@@ -267,4 +284,98 @@ def set_month():
     branch = request.args.get("branch", "Private")
     try:
         sheet = open_dds_sheet(branch)
-       
+        sheet.update_acell("H1", value)
+        return jsonify({"status": "ok", "written": value, "branch": branch})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ---------- Платёжный календарь ----------
+@app.route('/pk')
+def pk():
+    """
+    Лист PKBot в книге «СВОД 25-26»
+      Заголовок:
+        Private     -> A1:B3
+        Highschool  -> F1:G3
+        Academy     -> K1:L3
+      Таблица:
+        Private     -> A4:C63
+        Highschool  -> F4:H63
+        Academy     -> K4:M63
+    """
+    try:
+        branch = request.args.get("branch", "Private")
+        sheet = spreadsheet.worksheet("PKBot")
+
+        header_ranges = {"Private": "A1:B3", "Highschool": "F1:G3", "Academy": "K1:L3"}
+        table_ranges  = {"Private": "A4:C63", "Highschool": "F4:H63", "Academy": "K4:M63"}
+
+        header = sheet.get(header_ranges.get(branch, "A1:B3"))
+        table  = sheet.get(table_ranges.get(branch, "A4:C63"))
+
+        return jsonify({"branch": branch, "header": header, "table": table})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ---------- (опционально) тренд остатка ----------
+@app.route('/balance-trend')
+def balance_trend():
+    try:
+        branch = request.args.get("branch", "Private")
+        ws_name = get_worksheet_names(branch)["money"]
+        sheet = spreadsheet.worksheet(ws_name)
+        rows = sheet.get("J2:K200")
+        labels, values = [], []
+        for r in rows:
+            if len(r) < 2:
+                continue
+            date_str = (r[0] or "").strip()
+            val_str = (r[1] or "").strip()
+            if not date_str or not val_str:
+                continue
+            try:
+                d = datetime.strptime(date_str, "%d.%m.%Y")
+                labels.append(d.strftime("%d.%m"))
+            except Exception:
+                labels.append(date_str)
+            clean = val_str.replace("\xa0", " ").replace("₸", "").replace(" ", "").replace(",", ".")
+            try:
+                v = float(clean)
+            except Exception:
+                v = 0.0
+            values.append(v)
+        return jsonify({"labels": labels, "values": values, "branch": branch})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.after_request
+def apply_headers(response):
+    response.headers["ngrok-skip-browser-warning"] = "true"
+    return response
+
+# ================== Telegram Bot ==================
+WEBAPP_URL = os.getenv("WEBAPP_URL", "https://finance-miniapp.onrender.com/app").strip()
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [[InlineKeyboardButton("Открыть финансовое приложение",
+                                      web_app=WebAppInfo(url=WEBAPP_URL))]]
+    await update.message.reply_text("Добро пожаловать 👋", reply_markup=InlineKeyboardMarkup(keyboard))
+
+def run_bot():
+    token = os.getenv("TELEGRAM_TOKEN", "").strip()
+    if not token:
+        print("TELEGRAM_TOKEN не задан — бот не будет запущен.")
+        return
+    app_bot = ApplicationBuilder().token(token).build()
+    app_bot.add_handler(CommandHandler("start", start))
+    print("Бот запущен...")
+    app_bot.run_polling()
+
+# ================== ENTRYPOINT ====================
+if __name__ == '__main__':
+    # Стартуем бота фоном
+    threading.Thread(target=run_bot, daemon=True).start()
+
+    # Flask должен слушать порт, который даёт Render
+    port = int(os.environ.get("PORT", "5000"))
+    app.run(host="0.0.0.0", port=port)
