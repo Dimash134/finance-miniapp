@@ -1,44 +1,24 @@
-﻿from flask import Flask, jsonify, render_template, request, url_for
+from flask import Flask, jsonify, render_template, request, url_for
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 from pathlib import Path
 import os
-from time import time  # <-- для кэша
+import threading
 
-# --- читаем ключ Google из переменной окружения, а не из файла ---
-GOOGLE_SA_JSON = os.getenv("GOOGLE_SA_JSON")
-CREDS_FILE = "googlesheet.json"
-if GOOGLE_SA_JSON:
-    tmp_path = Path("/tmp/googlesheet.json")
-    tmp_path.write_text(GOOGLE_SA_JSON)
-    CREDS_FILE = str(tmp_path)
+# ==== Telegram Bot (python-telegram-bot v20) ====
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 app = Flask(__name__)
 
 # ---------- Google Sheets ----------
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-creds = ServiceAccountCredentials.from_json_keyfile_name(CREDS_FILE, scope)
+creds = ServiceAccountCredentials.from_json_keyfile_name('googlesheet.json', scope)
 client = gspread.authorize(creds)
 
 # Книга "СВОД 25-26" — используется для учеников/сотрудников/ПК, как раньше
 spreadsheet = client.open("СВОД 25-26")
-
-# --- простой кэш в памяти ---
-_cache = {}
-def get_cached(key, ttl, fetch_func):
-    """
-    key: любой hashable (кортеж строк и т.п.)
-    ttl: секунды жизни
-    fetch_func: функция без аргументов, которая вернёт данные
-    """
-    now = time()
-    hit = _cache.get(key)
-    if hit and (now - hit["t"]) < ttl:
-        return hit["v"]
-    v = fetch_func()
-    _cache[key] = {"v": v, "t": now}
-    return v
 
 # Карта листов по филиалам (для учеников/сотрудников/ПК)
 def get_worksheet_names(branch: str):
@@ -82,7 +62,7 @@ DDS_RANGES = {
 }
 
 # ---------- Общие PDF-отчёты ----------
-REPORTS_ROOT = Path(os.getenv("REPORTS_DIR", "static/reports"))
+REPORTS_ROOT = Path("static") / "reports"
 REPORTS_ROOT.mkdir(parents=True, exist_ok=True)
 
 RU_MONTHS = {
@@ -171,26 +151,24 @@ def get_balance():
     """
     try:
         branch = request.args.get("branch", "Private")
+        ws = open_dds_sheet(branch)
 
-        def fetch():
-            ws = open_dds_sheet(branch)
-            balance = (ws.acell("D6").value or "").replace("\u00a0", " ").strip()
-            wallet_rows = ws.get("C2:D5") or []
-            wallets = []
-            for row in wallet_rows:
-                name = (row[0] if len(row) > 0 else "").strip()
-                val  = (row[1] if len(row) > 1 else "").replace("\u00a0", " ").strip()
-                if name or val:
-                    wallets.append([name, val])
-            return {
-                "branch": branch,
-                "worksheet": ws.title,
-                "balance": balance,
-                "wallets": wallets
-            }
+        balance = (ws.acell("D6").value or "").replace("\u00a0", " ").strip()
 
-        data = get_cached(("balance", branch), 20, fetch)  # TTL 20 сек
-        return jsonify(data)
+        wallet_rows = ws.get("C2:D5") or []
+        wallets = []
+        for row in wallet_rows:
+            name = (row[0] if len(row) > 0 else "").strip()
+            val  = (row[1] if len(row) > 1 else "").replace("\u00a0", " ").strip()
+            if name or val:
+                wallets.append([name, val])
+
+        return jsonify({
+            "branch": branch,
+            "worksheet": ws.title,
+            "balance": balance,
+            "wallets": wallets
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -202,15 +180,11 @@ def get_summary():
         branch = request.args.get("branch", "Private")
         if mode not in DDS_RANGES:
             return jsonify({"error": "Некорректный режим"}), 400
-
-        def fetch():
-            sheet = open_dds_sheet(branch)
-            # Один запрос вместо 3-х
-            blocks = sheet.batch_get(DDS_RANGES[mode])  # list[list[list[str]]]
-            # склеиваем в один список строк
-            return sum(blocks, [])
-
-        result = get_cached(("summary", branch, mode), 20, fetch)
+        sheet = open_dds_sheet(branch)
+        result = []
+        for cell_range in DDS_RANGES[mode]:
+            values = sheet.get(cell_range)
+            result.extend(values)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -226,11 +200,7 @@ def students_summary():
         rng = "A3:B7" if mode == "current" else "C3:D7" if mode == "month" else None
         if not rng:
             return jsonify({"error": "Некорректный режим"}), 400
-
-        def fetch():
-            return sheet.get(rng)
-
-        rows = get_cached(("students", branch, mode, rng), 20, fetch)
+        rows = sheet.get(rng)
         return jsonify({"branch": branch, "mode": mode, "rows": rows})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -245,8 +215,6 @@ def students_set_month():
         ws_name = get_worksheet_names(branch)["students"]
         sheet = spreadsheet.worksheet(ws_name)
         sheet.update_acell("D2", value)
-        # сбросим кэш по students-month
-        _cache.pop(("students", branch, "month", "C3:D7"), None)
         return jsonify({"status": "ok", "written": value, "branch": branch})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -262,11 +230,7 @@ def staff_summary():
         rng = "A3:B13" if mode == "current" else "C3:D13" if mode == "month" else None
         if not rng:
             return jsonify({"error": "Некорректный режим"}), 400
-
-        def fetch():
-            return sheet.get(rng)
-
-        rows = get_cached(("staff", branch, mode, rng), 20, fetch)
+        rows = sheet.get(rng)
         return jsonify({"branch": branch, "mode": mode, "rows": rows})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -281,8 +245,6 @@ def staff_set_month():
         ws_name = get_worksheet_names(branch)["staff"]
         sheet = spreadsheet.worksheet(ws_name)
         sheet.update_acell("D1", value)
-        # сброс кэша по staff-month
-        _cache.pop(("staff", branch, "month", "C3:D13"), None)
         return jsonify({"status": "ok", "written": value, "branch": branch})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -295,8 +257,6 @@ def set_date():
     try:
         sheet = open_dds_sheet(branch)
         sheet.update_acell("F1", value)
-        # сбросим кэш по summary-дата
-        _cache.pop(("summary", branch, "дата"), None)
         return jsonify({"status": "ok", "written": value, "branch": branch})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -307,84 +267,4 @@ def set_month():
     branch = request.args.get("branch", "Private")
     try:
         sheet = open_dds_sheet(branch)
-        sheet.update_acell("H1", value)
-        # сбросим кэш по summary-месяц
-        _cache.pop(("summary", branch, "месяц"), None)
-        return jsonify({"status": "ok", "written": value, "branch": branch})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# ---------- Платёжный календарь ----------
-@app.route('/pk')
-def pk():
-    """
-    Лист PKBot в книге «СВОД 25-26»
-      Заголовок:
-        Private     -> A1:B3
-        Highschool  -> F1:G3
-        Academy     -> K1:L3
-      Таблица:
-        Private     -> A4:C63
-        Highschool  -> F4:H63
-        Academy     -> K4:M63
-    """
-    try:
-        branch = request.args.get("branch", "Private")
-        sheet = spreadsheet.worksheet("PKBot")
-
-        header_ranges = {"Private": "A1:B3", "Highschool": "F1:G3", "Academy": "K1:L3"}
-        table_ranges  = {"Private": "A4:C63", "Highschool": "F4:H63", "Academy": "K4:M63"}
-
-        hr = header_ranges.get(branch, "A1:B3")
-        tr = table_ranges.get(branch, "A4:C63")
-
-        def fetch():
-            # одним вызовом получаем и хедер, и таблицу
-            blocks = sheet.batch_get([hr, tr])  # [header_values, table_values]
-            header = blocks[0] if len(blocks) > 0 else []
-            table  = blocks[1] if len(blocks) > 1 else []
-            return {"branch": branch, "header": header, "table": table}
-
-        data = get_cached(("pk", branch, hr, tr), 20, fetch)
-        return jsonify(data)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# ---------- (опционально) тренд остатка ----------
-@app.route('/balance-trend')
-def balance_trend():
-    try:
-        branch = request.args.get("branch", "Private")
-        ws_name = get_worksheet_names(branch)["money"]
-        sheet = spreadsheet.worksheet(ws_name)
-        rows = sheet.get("J2:K200")
-        labels, values = [], []
-        for r in rows:
-            if len(r) < 2:
-                continue
-            date_str = (r[0] or "").strip()
-            val_str = (r[1] or "").strip()
-            if not date_str or not val_str:
-                continue
-            try:
-                d = datetime.strptime(date_str, "%d.%m.%Y")
-                labels.append(d.strftime("%d.%m"))
-            except Exception:
-                labels.append(date_str)
-            clean = val_str.replace("\xa0", " ").replace("₸", "").replace(" ", "").replace(",", ".")
-            try:
-                v = float(clean)
-            except Exception:
-                v = 0.0
-            values.append(v)
-        return jsonify({"labels": labels, "values": values, "branch": branch})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.after_request
-def apply_headers(response):
-    response.headers["ngrok-skip-browser-warning"] = "true"
-    return response
-
-if __name__ == '__main__':
-    app.run(debug=True)
+       
