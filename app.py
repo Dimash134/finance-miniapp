@@ -5,35 +5,32 @@ from datetime import datetime
 from pathlib import Path
 import os
 import json
-import threading
 
-# ==== Telegram Bot (python-telegram-bot v20) ====
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+# --- для отправки сообщений в Telegram без лишних зависимостей
+import urllib.request
+import urllib.parse
 
 app = Flask(__name__)
 
 # ---------- Google Sheets ----------
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
-# Пытаемся взять сервисный ключ из переменной окружения (Render: Environment Group)
+# Берём сервисный ключ из переменной окружения GOOGLE_SA_JSON (Render: Environment Group)
 GOOGLE_SA_JSON = os.getenv("GOOGLE_SA_JSON", "").strip()
 if GOOGLE_SA_JSON:
     try:
-        # значение хранится как JSON-строка
         creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(GOOGLE_SA_JSON), scope)
     except Exception:
-        # значение может быть «сырым» содержимым файла -> пишем во временный файл
         tmp = Path("/tmp/googlesheet.json")
         tmp.write_text(GOOGLE_SA_JSON, encoding="utf-8")
         creds = ServiceAccountCredentials.from_json_keyfile_name(str(tmp), scope)
 else:
-    # локальный режим — берём файл из репозитория
+    # локальный режим — файл в репозитории
     creds = ServiceAccountCredentials.from_json_keyfile_name('googlesheet.json', scope)
 
 client = gspread.authorize(creds)
 
-# Книга "СВОД 25-26" — используется для учеников/сотрудников/ПК
+# Книга "СВОД 25-26"
 spreadsheet = client.open("СВОД 25-26")
 
 # Карта листов по филиалам (для учеников/сотрудников/ПК)
@@ -294,14 +291,6 @@ def set_month():
 def pk():
     """
     Лист PKBot в книге «СВОД 25-26»
-      Заголовок:
-        Private     -> A1:B3
-        Highschool  -> F1:G3
-        Academy     -> K1:L3
-      Таблица:
-        Private     -> A4:C63
-        Highschool  -> F4:H63
-        Academy     -> K4:M63
     """
     try:
         branch = request.args.get("branch", "Private")
@@ -353,29 +342,48 @@ def apply_headers(response):
     response.headers["ngrok-skip-browser-warning"] = "true"
     return response
 
-# ================== Telegram Bot ==================
+# ================== Telegram webhook ==================
 WEBAPP_URL = os.getenv("WEBAPP_URL", "https://finance-miniapp.onrender.com/app").strip()
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "").strip()
+TG_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}" if TELEGRAM_TOKEN else ""
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[InlineKeyboardButton("Открыть финансовое приложение",
-                                      web_app=WebAppInfo(url=WEBAPP_URL))]]
-    await update.message.reply_text("Добро пожаловать 👋", reply_markup=InlineKeyboardMarkup(keyboard))
-
-def run_bot():
-    token = os.getenv("TELEGRAM_TOKEN", "").strip()
-    if not token:
-        print("TELEGRAM_TOKEN не задан — бот не будет запущен.")
+def tg_send_message(chat_id: int, text: str, reply_markup: dict | None = None):
+    if not TG_API:
         return
-    app_bot = ApplicationBuilder().token(token).build()
-    app_bot.add_handler(CommandHandler("start", start))
-    print("Бот запущен...")
-    app_bot.run_polling()
+    data = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+    if reply_markup:
+        data["reply_markup"] = reply_markup
+    body = json.dumps(data).encode("utf-8")
+    req = urllib.request.Request(
+        f"{TG_API}/sendMessage",
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req) as resp:
+        resp.read()
+
+@app.route("/telegram-webhook", methods=["POST"])
+@app.route(f"/telegram-webhook/{TELEGRAM_TOKEN}", methods=["POST"])  # на всякий случай
+def telegram_webhook():
+    upd = request.get_json(silent=True) or {}
+    msg = upd.get("message") or upd.get("edited_message") or {}
+    chat = msg.get("chat") or {}
+    chat_id = chat.get("id")
+    text = (msg.get("text") or "").strip()
+
+    if chat_id and text.startswith("/start"):
+        kb = {
+            "inline_keyboard": [[
+                {"text": "Открыть Финансовое Приложение", "web_app": {"url": WEBAPP_URL}}
+            ]]
+        }
+        tg_send_message(chat_id, "Добро пожаловать 👋", reply_markup=kb)
+
+    return jsonify(ok=True)
 
 # ================== ENTRYPOINT ====================
 if __name__ == '__main__':
-    # Стартуем бота фоном
-    threading.Thread(target=run_bot, daemon=True).start()
-
-    # Flask должен слушать порт, который даёт Render
+    # Только Flask. Бот работает через вебхук (никакого polling/потоков)
     port = int(os.environ.get("PORT", "5000"))
     app.run(host="0.0.0.0", port=port)
