@@ -75,13 +75,11 @@ DDS_RANGES = {
 }
 
 # ---------- Расшифровка (новое) ----------
-# Листы в соответствующих книгах
 BREAKDOWN_SHEETS = {
     "текущий": "Расшифровка ДДС сегодня",
     "месяц":   "Расшифровка ДДС на месяц",
     "дата":    "Расшифровка ДДС на дату",
 }
-# Диапазоны колонок
 BD_RANGES = ["B3:B1000", "D3:D1000", "E3:E1000", "F3:F1000"]  # amount, counterparty, purpose, article
 
 def read_breakdown(branch: str, scope: str):
@@ -96,10 +94,9 @@ def read_breakdown(branch: str, scope: str):
     book = client.open_by_key(src["key"])
     ws = book.worksheet(BREAKDOWN_SHEETS.get(scope, BREAKDOWN_SHEETS["текущий"]))
 
-    # batch_read — одной сетевой операцией
     b_amount, b_counterparty, b_purpose, b_article = ws.batch_get(BD_RANGES)
-    # Выравниваем длину
     max_len = max(len(b_amount), len(b_article), len(b_counterparty), len(b_purpose))
+
     def safe_get(arr, i):
         return (arr[i][0] if i < len(arr) and len(arr[i]) > 0 else "").strip()
 
