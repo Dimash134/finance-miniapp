@@ -89,18 +89,24 @@
     .rep-chk{ display:none; }
     .rep-chk.show{ display:inline-block; }
 
-    /* Модалка расшифровки */
+    /* ===== Модалка расшифровки: адаптив + цвета сумм ===== */
     .modal{position:fixed; inset:0; background:rgba(0,0,0,.2); display:none; align-items:center; justify-content:center; z-index:1200}
     .modal.show{display:flex}
-    .modal-body{width:92%; max-width:920px; max-height:80vh; overflow:auto; background:#fff; border-radius:12px; padding:12px}
-    .bd-head{display:flex; gap:8px; align-items:center; margin-bottom:8px}
-    .bd-head input, .bd-head select{padding:8px; border:1px solid #ddd; border-radius:8px}
+    .modal-body{
+      width: min(96vw, 640px);
+      max-height: calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      overflow:auto; background:#fff; border-radius:12px; padding:12px
+    }
+    .bd-head{display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap}
+    .bd-head input, .bd-head select{padding:8px; border:1px solid #ddd; border-radius:8px; flex:1 1 220px; min-width:0}
     .row{border-bottom:1px solid #eee; padding:10px 6px; cursor:pointer}
-    .top{display:flex; justify-content:space-between; font-weight:600}
+    .top{display:flex; justify-content:space-between; gap:8px; font-weight:600}
     .bottom{margin-top:6px; font-size:14px; color:#444; display:none}
     .row.open .bottom{display:block}
     .amount{white-space:nowrap}
     .muted{color:#666; font-size:13px}
+    .amt-pos{ color: var(--green-2); font-weight:800; }
+    .amt-neg{ color: var(--red);     font-weight:800; }
 
     @media (max-width:560px){
       .top-bar{padding:8px 12px}
@@ -114,6 +120,10 @@
       .kpis{grid-template-columns:1fr; gap:8px}
       .kpi .value{font-size:16px}
       td:first-child{max-width:70vw; word-break:break-word}
+      .modal-body{ width: calc(100vw - 16px); border-radius:12px; }
+      .row{ padding:10px 4px; }
+      .top{ font-size:15px; }
+      .bottom{ font-size:13px; }
     }
   </style>
 </head>
@@ -430,7 +440,7 @@
         .then(()=>{ currentMode='месяц'; activateMainTab('месяц'); loadSummary('месяц'); updatePeriodLabel('месяц'); document.activeElement?.blur(); });
     }
 
-    // ====== Расшифровка (новое)
+    // ====== Расшифровка (модалка)
     const bdModal = document.getElementById('bd-modal');
     const bdList  = document.getElementById('bd-list');
     const bdPager = document.getElementById('bd-pager');
@@ -470,18 +480,23 @@
     window.bdNext = ()=>{ if(bdPage*bdLimit<bdTotal){ bdPage++; fetchBreakdown(); } };
 
     function renderBreakdown(rows){
-      bdList.innerHTML = rows.map(x=>`
-        <div class="row">
-          <div class="top">
-            <div>${x.article||''}</div>
-            <div class="amount">${x.amount||''}</div>
+      bdList.innerHTML = rows.map(x=>{
+        const raw = (x.amount || '').toString();
+        const val = parseNumber(raw);
+        const cls = Number.isFinite(val) ? (val < 0 ? 'amt-neg' : 'amt-pos') : '';
+        return `
+          <div class="row">
+            <div class="top">
+              <div>${x.article || ''}</div>
+              <div class="amount ${cls}">${raw}</div>
+            </div>
+            <div class="bottom">
+              <div><b>Контрагент:</b> ${x.counterparty || '-'}</div>
+              <div><b>Назначение:</b> ${x.purpose || '-'}</div>
+            </div>
           </div>
-          <div class="bottom">
-            <div><b>Контрагент:</b> ${x.counterparty||'-'}</div>
-            <div><b>Назначение:</b> ${x.purpose||'-'}</div>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
       bdList.querySelectorAll('.row').forEach(r=>{
         r.addEventListener('click', ()=> r.classList.toggle('open'));
       });
