@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
@@ -89,6 +89,19 @@
     .rep-chk{ display:none; }
     .rep-chk.show{ display:inline-block; }
 
+    /* Модалка расшифровки */
+    .modal{position:fixed; inset:0; background:rgba(0,0,0,.2); display:none; align-items:center; justify-content:center; z-index:1200}
+    .modal.show{display:flex}
+    .modal-body{width:92%; max-width:920px; max-height:80vh; overflow:auto; background:#fff; border-radius:12px; padding:12px}
+    .bd-head{display:flex; gap:8px; align-items:center; margin-bottom:8px}
+    .bd-head input, .bd-head select{padding:8px; border:1px solid #ddd; border-radius:8px}
+    .row{border-bottom:1px solid #eee; padding:10px 6px; cursor:pointer}
+    .top{display:flex; justify-content:space-between; font-weight:600}
+    .bottom{margin-top:6px; font-size:14px; color:#444; display:none}
+    .row.open .bottom{display:block}
+    .amount{white-space:nowrap}
+    .muted{color:#666; font-size:13px}
+
     @media (max-width:560px){
       .top-bar{padding:8px 12px}
       .branch-select{min-width:130px; font-size:14px}
@@ -161,6 +174,11 @@
       </div>
 
       <table id="summary-table"></table>
+
+      <!-- Кнопка расшифровки -->
+      <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+        <button id="btn-breakdown" class="menu-button" style="background:#fff; border:1px solid #ccc; color:#111;">Расшифровка</button>
+      </div>
     </div>
 
     <!-- Ученики -->
@@ -238,6 +256,19 @@
     </div>
   </div>
 
+  <!-- Модалка «Расшифровка» -->
+  <div class="modal" id="bd-modal">
+    <div class="modal-body">
+      <div class="bd-head">
+        <div id="bd-title" style="font-weight:800; margin-right:auto;">Расшифровка</div>
+        <input id="bd-search" placeholder="Поиск по контрагенту/назначению/статье">
+        <button id="bd-close" class="menu-button" style="background:#fff; border:1px solid #ccc; color:#111;">Закрыть</button>
+      </div>
+      <div id="bd-list"></div>
+      <div id="bd-pager" class="muted" style="margin-top:8px;"></div>
+    </div>
+  </div>
+
   <script>
     const MONTHS = [
       {label:'Сентябрь', value:9}, {label:'Октябрь', value:10}, {label:'Ноябрь', value:11}, {label:'Декабрь', value:12},
@@ -279,10 +310,8 @@
     branchSelect.addEventListener('change', ()=>{
       currentBranch = branchSelect.value;
 
-      // обновляем числовые данные
       refreshBalance(); loadSummary(currentMode); updatePeriodLabel(currentMode);
 
-      // ОБНОВЛЯЕМ ЗАГОЛОВКИ ОТКРЫТЫХ РАЗДЕЛОВ
       if (isVisible('students-section')) {
         document.getElementById('students-branch-label').innerText = currentBranch;
         loadStudents();
@@ -401,6 +430,63 @@
         .then(()=>{ currentMode='месяц'; activateMainTab('месяц'); loadSummary('месяц'); updatePeriodLabel('месяц'); document.activeElement?.blur(); });
     }
 
+    // ====== Расшифровка (новое)
+    const bdModal = document.getElementById('bd-modal');
+    const bdList  = document.getElementById('bd-list');
+    const bdPager = document.getElementById('bd-pager');
+    let bdPage = 1, bdLimit = 50, bdTotal = 0;
+
+    document.getElementById('btn-breakdown').addEventListener('click', openBreakdown);
+    document.getElementById('bd-close').addEventListener('click', ()=>bdModal.classList.remove('show'));
+    document.getElementById('bd-search').addEventListener('input', ()=>{
+      clearTimeout(window.__bd_t);
+      window.__bd_t = setTimeout(()=>{ bdPage=1; fetchBreakdown(); }, 300);
+    });
+
+    function openBreakdown(){
+      document.getElementById('bd-title').textContent = `Расшифровка — ${currentBranch} · ${currentMode}`;
+      bdPage = 1;
+      fetchBreakdown();
+      bdModal.classList.add('show');
+    }
+    function fetchBreakdown(){
+      const search = document.getElementById('bd-search').value.trim();
+      const q = new URLSearchParams({
+        branch: currentBranch, scope: currentMode, page: bdPage, limit: bdLimit, search
+      });
+      fetch(`/breakdown?${q.toString()}`)
+        .then(r=>r.json())
+        .then(d=>{
+          bdTotal = d.total||0;
+          renderBreakdown(d.data||[]);
+          const from = Math.min((bdPage-1)*bdLimit+1, bdTotal);
+          const to   = Math.min(bdPage*bdLimit, bdTotal);
+          bdPager.innerHTML = `${bdTotal?from:0}-${to} из ${bdTotal}
+            &nbsp;&nbsp;<button ${bdPage<=1?'disabled':''} onclick="bdPrev()">Назад</button>
+            <button ${bdPage*bdLimit>=bdTotal?'disabled':''} onclick="bdNext()">Вперёд</button>`;
+        });
+    }
+    window.bdPrev = ()=>{ if(bdPage>1){ bdPage--; fetchBreakdown(); } };
+    window.bdNext = ()=>{ if(bdPage*bdLimit<bdTotal){ bdPage++; fetchBreakdown(); } };
+
+    function renderBreakdown(rows){
+      bdList.innerHTML = rows.map(x=>`
+        <div class="row">
+          <div class="top">
+            <div>${x.article||''}</div>
+            <div class="amount">${x.amount||''}</div>
+          </div>
+          <div class="bottom">
+            <div><b>Контрагент:</b> ${x.counterparty||'-'}</div>
+            <div><b>Назначение:</b> ${x.purpose||'-'}</div>
+          </div>
+        </div>
+      `).join('');
+      bdList.querySelectorAll('.row').forEach(r=>{
+        r.addEventListener('click', ()=> r.classList.toggle('open'));
+      });
+    }
+
     // ===== Ученики
     function openStudents(){
       document.getElementById('main-section').style.display='none';
@@ -501,7 +587,7 @@
       loadStaff();
     });
 
-    // ===== Платёжный календарь (теперь для всех филиалов)
+    // ===== Платёжный календарь (для всех филиалов)
     function openPK(){
       document.getElementById('main-section').style.display='none';
       document.getElementById('wallets-section').style.display='none';
@@ -514,7 +600,6 @@
     }
     function closePK(){ showMain(); }
     function loadPK(){
-      // заголовок с названием филиала
       document.getElementById('pk-branch-label').innerText = currentBranch;
 
       fetch(`/pk?branch=${encodeURIComponent(currentBranch)}`)
@@ -702,6 +787,10 @@
           const mode=tab.dataset.mode; currentMode=mode;
           activateMainTab(mode); loadSummary(mode); updatePeriodLabel(mode);
         });
+      });
+
+      document.getElementById('bd-modal').addEventListener('click', (e)=>{
+        if(e.target.id==='bd-modal') bdModal.classList.remove('show');
       });
 
       activateMainTab('текущий'); updatePeriodLabel('текущий');
