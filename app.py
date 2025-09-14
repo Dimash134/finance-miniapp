@@ -74,6 +74,74 @@ DDS_RANGES = {
     'месяц':   ['G3:H15', 'G17:H21', 'G23:H25']
 }
 
+# ---------- Расшифровка (новое) ----------
+# Листы в соответствующих книгах
+BREAKDOWN_SHEETS = {
+    "текущий": "Расшифровка ДДС сегодня",
+    "месяц":   "Расшифровка ДДС на месяц",
+    "дата":    "Расшифровка ДДС на дату",
+}
+# Диапазоны колонок
+BD_RANGES = ["B3:B1000", "D3:D1000", "E3:E1000", "F3:F1000"]  # amount, counterparty, purpose, article
+
+def read_breakdown(branch: str, scope: str):
+    """
+    Возвращает список словарей:
+    {amount:str, article:str, counterparty:str, purpose:str}
+    Пустые строки по amount/article отбрасываются.
+    """
+    branch = branch or "Private"
+    scope = scope or "текущий"
+    src = DDS_SOURCES.get(branch, DDS_SOURCES["Private"])
+    book = client.open_by_key(src["key"])
+    ws = book.worksheet(BREAKDOWN_SHEETS.get(scope, BREAKDOWN_SHEETS["текущий"]))
+
+    # batch_read — одной сетевой операцией
+    b_amount, b_counterparty, b_purpose, b_article = ws.batch_get(BD_RANGES)
+    # Выравниваем длину
+    max_len = max(len(b_amount), len(b_article), len(b_counterparty), len(b_purpose))
+    def safe_get(arr, i):
+        return (arr[i][0] if i < len(arr) and len(arr[i]) > 0 else "").strip()
+
+    items = []
+    for i in range(max_len):
+        amount = safe_get(b_amount, i)
+        article = safe_get(b_article, i)
+        if not amount and not article:
+            continue
+        items.append({
+            "amount": amount,
+            "article": article,
+            "counterparty": safe_get(b_counterparty, i),
+            "purpose": safe_get(b_purpose, i),
+        })
+    return items
+
+@app.route('/breakdown')
+def breakdown():
+    try:
+        branch = request.args.get("branch", "Private")
+        scope  = request.args.get("scope", "текущий")  # текущий|месяц|дата
+        page   = max(1, int(request.args.get("page", 1)))
+        limit  = max(1, min(500, int(request.args.get("limit", 100))))
+        search = (request.args.get("search", "") or "").strip().lower()
+
+        items = read_breakdown(branch, scope)
+
+        if search:
+            items = [
+                x for x in items
+                if search in (x["counterparty"] or "").lower() or search in (x["purpose"] or "").lower()
+                   or search in (x["article"] or "").lower()
+            ]
+
+        total = len(items)
+        start = (page - 1) * limit
+        data = items[start:start + limit]
+        return jsonify({"branch": branch, "scope": scope, "total": total, "data": data})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # ---------- Общие PDF-отчёты ----------
 REPORTS_ROOT = Path(os.getenv("REPORTS_DIR", "static/reports"))
 REPORTS_ROOT.mkdir(parents=True, exist_ok=True)
