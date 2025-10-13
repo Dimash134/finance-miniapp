@@ -3,7 +3,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 from pathlib import Path
-import os, json, urllib.request, urllib.parse
+import os, json, urllib.request
 
 app = Flask(__name__)
 
@@ -59,11 +59,19 @@ def read_breakdown(branch: str, scope: str):
     ws = client.open_by_key(src["key"]).worksheet(BREAKDOWN_SHEETS.get(scope,"Расшифровка ДДС сегодня"))
     b_amount, b_counterparty, b_purpose, b_article = ws.batch_get(BD_RANGES)
     max_len = max(len(b_amount), len(b_article), len(b_counterparty), len(b_purpose))
-    def g(a,i): return (a[i][0] if i < len(a) and a[i] else "").strip()
+
+    def g(a,i): 
+        try:
+            v = a[i][0]
+            return (v or "").strip()
+        except Exception:
+            return ""
+
     out=[]
     for i in range(max_len):
         amount=g(b_amount,i); article=g(b_article,i)
-        if not amount and not article: continue
+        if not amount and not article: 
+            continue
         out.append({"amount":amount,"article":article,"counterparty":g(b_counterparty,i),"purpose":g(b_purpose,i)})
     return out
 
@@ -83,12 +91,11 @@ def breakdown():
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
-# ---------- НОВОЕ: «Свод» на главной ----------
-# Источник тот же ключ, лист «Свод», диапазоны:
+# ---------- НОВОЕ: «Свод» на главной (не зависит от филиалов) ----------
 SVOD_KEY = "1FIBAlCkUL2qT9ztd3gfH5kOd3eHLKE53eYKLJzD75dw"
+
 @app.route('/svod')
 def svod():
-    """Возвращает три блока: A2:B5, D2:E7, G2:H12 листа «Свод» без привязки к филиалу."""
     try:
         ws = client.open_by_key(SVOD_KEY).worksheet("Свод")
         p1, p2, p3 = ws.batch_get(["A2:B5","D2:E7","G2:H12"])
@@ -142,7 +149,7 @@ def home(): return '📊 Finance MiniApp работает!'
 @app.route('/app')
 def app_page(): return render_template("index.html")
 
-# ---------- ДДС (как было, но теперь отдельный раздел на фронте) ----------
+# ---------- ДДС ----------
 @app.route('/dds')
 def get_dds_data():
     sheet = spreadsheet.worksheet("ДДС:факт Private")
@@ -175,7 +182,7 @@ def get_summary():
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
-# ---------- Ученики / Сотрудники / ПК (без изменений) ----------
+# ---------- Ученики ----------
 @app.route('/students')
 def students_summary():
     try:
@@ -197,6 +204,7 @@ def students_set_month():
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
+# ---------- Сотрудники ----------
 @app.route('/staff')
 def staff_summary():
     try:
@@ -218,6 +226,7 @@ def staff_set_month():
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
+# ---------- Установка даты / месяца ----------
 @app.route('/set-date')
 def set_date():
     value = request.args.get('value'); branch = request.args.get("branch","Private")
@@ -236,6 +245,7 @@ def set_month():
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
+# ---------- Платёжный календарь ----------
 @app.route('/pk')
 def pk():
     try:
@@ -249,6 +259,7 @@ def pk():
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
+# ---------- Тренд остатка ----------
 @app.route('/balance-trend')
 def balance_trend():
     try:
@@ -274,6 +285,7 @@ def balance_trend():
 def apply_headers(resp):
     resp.headers["ngrok-skip-browser-warning"]="true"; return resp
 
+# -------- Telegram webhook (как было) --------
 WEBAPP_URL = os.getenv("WEBAPP_URL","https://finance-miniapp.onrender.com/app").strip()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN","").strip()
 TG_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}" if TELEGRAM_TOKEN else ""
