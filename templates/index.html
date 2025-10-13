@@ -40,7 +40,6 @@
     line-height:1.6; transition:var(--tr);
   }
 
-  /* top bar */
   .top-bar{position:sticky;top:0;z-index:100;background:var(--bg-gradient);
     padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;
     box-shadow:0 4px 12px rgba(0,0,0,.1)}
@@ -52,7 +51,6 @@
   .menu-button{color:#667eea}
   .branch-select:hover,.menu-button:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.15)}
 
-  /* side menu */
   .side-menu{position:fixed;top:0;right:-300px;width:300px;height:100%;background:var(--tg-theme-bg-color);
     box-shadow:-4px 0 20px rgba(0,0,0,.15);padding:24px 20px;transition:right .3s cubic-bezier(.4,0,.2,1);
     z-index:1000;overflow-y:auto}
@@ -69,7 +67,6 @@
   .container{padding:20px;max-width:980px;margin:0 auto;animation:fade .35s ease}
   @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
-  /* blocks */
   .dash-title{font-weight:900;font-size:20px;margin:4px 0 12px;background:var(--bg-gradient);
     -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
   .dash-block{background:var(--tg-theme-secondary-bg-color);border-radius:var(--radius);padding:18px;margin-bottom:14px;
@@ -81,7 +78,6 @@
   .dash-block td:first-child{color:var(--tg-theme-hint-color);font-weight:500}
   .dash-block td:last-child{text-align:right;font-weight:800}
 
-  /* tabs + controls */
   .tabs{display:flex;gap:8px;justify-content:center;margin:16px 0;flex-wrap:wrap;padding:8px;background:var(--tg-theme-secondary-bg-color);
     border-radius:14px;box-shadow:inset 0 2px 4px rgba(0,0,0,.05)}
   .tab{padding:10px 16px;background:transparent;border:0;border-radius:10px;font-weight:800;color:var(--tg-theme-hint-color);cursor:pointer;transition:var(--tr)}
@@ -95,7 +91,6 @@
   .btn-back{background:var(--tg-theme-secondary-bg-color);border:0;border-radius:10px;padding:8px 12px;font-weight:700;cursor:pointer}
   .btn-back:hover{background:var(--primary);color:#fff}
 
-  /* KPI */
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin:14px 0}
   .kpi{background:var(--tg-theme-secondary-bg-color);border-radius:var(--radius);padding:18px;text-align:center;
     box-shadow:var(--card-shadow);position:relative;overflow:hidden;transition:var(--tr)}
@@ -108,7 +103,6 @@
   .kpi.expense .value{color:var(--danger)}
   .kpi.net .value{background:var(--bg-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 
-  /* table */
   table{width:100%;border-collapse:separate;border-spacing:0;background:var(--tg-theme-secondary-bg-color);
     border-radius:var(--radius);overflow:hidden;box-shadow:var(--card-shadow)}
   td{padding:14px 16px;border-bottom:1px solid rgba(0,0,0,.05);font-size:15px}
@@ -118,7 +112,6 @@
   tr.total{background:rgba(102,126,234,.08)}
   tr.total td{font-weight:900;border-top:2px solid rgba(102,126,234,.25)}
 
-  /* PK cards */
   #pk-header{border:0;background:transparent;border-collapse:separate;border-spacing:0 10px;box-shadow:none}
   #pk-header td{background:var(--tg-theme-secondary-bg-color);padding:14px 16px;font-weight:800;box-shadow:var(--card-shadow)}
   #pk-header td:first-child{border-radius:12px 0 0 12px}
@@ -134,7 +127,6 @@
   .pk-inout .pk-income{color:var(--success);font-weight:800}
   .pk-inout .pk-expense{color:var(--danger);font-weight:800}
 
-  /* breakdown modal */
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:1200;backdrop-filter:blur(8px);padding:20px}
   .modal.show{display:flex;animation:fade .3s ease}
   .modal-body{width:min(96vw,680px);max-height:calc(100vh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow:auto;
@@ -172,7 +164,6 @@
   <div class="overlay" id="overlay"></div>
   <div class="side-menu" id="side-menu">
     <h3>Разделы</h3>
-    <!-- Без «Главная», как просили -->
     <button data-section="dds">💰 ДДС</button>
     <button data-section="students">👨‍🎓 Ученики</button>
     <button data-section="staff">👥 Сотрудники</button>
@@ -181,7 +172,7 @@
   </div>
 
   <div class="container">
-    <!-- DASHBOARD -->
+    <!-- Главная -->
     <div id="dashboard-section">
       <div class="dash-title">Сводные данные</div>
       <div class="dash-block"><table id="svod-p1"></table></div>
@@ -189,7 +180,7 @@
       <div class="dash-block"><table id="svod-p3"></table></div>
     </div>
 
-    <!-- DDS -->
+    <!-- ДДС -->
     <div id="dds-section" style="display:none;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
         <button class="btn-back" onclick="showOnly('dashboard-section')">← Назад</button>
@@ -210,8 +201,6 @@
         <button onclick="setMonth()">Установить месяц</button>
       </div>
 
-      <div class="period-label" id="period-label" style="display:none"></div>
-
       <div class="kpis">
         <div class="kpi income"><div class="label">Доход</div><div class="value" id="kpi-income">0 ₸</div></div>
         <div class="kpi expense"><div class="label">Расход</div><div class="value" id="kpi-expense">0 ₸</div></div>
@@ -223,9 +212,11 @@
       <div style="display:flex;justify-content:flex-end;margin-top:12px;">
         <button id="btn-breakdown" class="menu-button" style="background:var(--primary);color:#fff">Расшифровка</button>
       </div>
+
+      <div class="period-label" id="period-label" style="margin-top:12px;"></div>
     </div>
 
-    <!-- STUDENTS -->
+    <!-- Ученики -->
     <div id="students-section" style="display:none;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
         <button class="btn-back" onclick="closeStudents()">← Назад</button>
@@ -243,7 +234,7 @@
       <table id="students-table"></table>
     </div>
 
-    <!-- STAFF -->
+    <!-- Сотрудники -->
     <div id="staff-section" style="display:none;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
         <button class="btn-back" onclick="closeStaff()">← Назад</button>
@@ -261,7 +252,7 @@
       <table id="staff-table"></table>
     </div>
 
-    <!-- PK -->
+    <!-- Платежный календарь -->
     <div id="pk-section" style="display:none;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
         <button class="btn-back" onclick="closePK()">← Назад</button>
@@ -271,7 +262,7 @@
       <table id="pk-table"></table>
     </div>
 
-    <!-- REPORTS -->
+    <!-- Отчёты -->
     <div id="reports-section" style="display:none;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
         <button class="btn-back" onclick="closeReports()">← Назад</button>
@@ -292,7 +283,7 @@
     </div>
   </div>
 
-  <!-- BREAKDOWN MODAL -->
+  <!-- Модалка расшифровки -->
   <div class="modal" id="bd-modal">
     <div class="modal-body">
       <div class="bd-head">
@@ -306,21 +297,34 @@
   </div>
 
 <script>
-  // Telegram theme sync
+  // Telegram theme
   const tg = window.Telegram?.WebApp;
   if(tg){ tg.ready(); tg.expand(); const theme=tg.colorScheme||'light'; document.documentElement.setAttribute('data-theme',theme);
     if(theme==='dark'){ document.documentElement.style.setProperty('--tg-theme-bg-color',tg.themeParams.bg_color || '#18181b');
       document.documentElement.style.setProperty('--tg-theme-text-color',tg.themeParams.text_color || '#ffffff');
       document.documentElement.style.setProperty('--tg-theme-secondary-bg-color',tg.themeParams.secondary_bg_color || '#27272a'); } }
 
-  // months
+  // Months
   const MONTHS=[{label:'Сентябрь',value:9},{label:'Октябрь',value:10},{label:'Ноябрь',value:11},{label:'Декабрь',value:12},{label:'Январь',value:1},{label:'Февраль',value:2},{label:'Март',value:3},{label:'Апрель',value:4},{label:'Май',value:5},{label:'Июнь',value:6}];
   function fillMonthSelect(sel){ sel.innerHTML=MONTHS.map(m=>`<option value="${m.value}">${m.label}</option>`).join(''); }
 
-  // state
+  // State
   let currentMode='текущий', currentBranch='Private', studentsMode='current', staffMode='current';
 
-  // menu
+  // ---- guards for async requests
+  const controllers = { svod:null, dds:null, students:null, staff:null, pk:null, reports:null, bd:null };
+  const version     = { svod:0,    dds:0,    students:0,    staff:0,    pk:0,    reports:0,    bd:0    };
+  function startReq(key){
+    try{ controllers[key]?.abort(); }catch{}
+    controllers[key] = new AbortController();
+    version[key] += 1;
+    return { signal: controllers[key].signal, v: version[key] };
+  }
+  function stillLatest(key, v, branchAtStart){
+    return v === version[key] && branchAtStart === currentBranch;
+  }
+
+  // Menu
   const menu=document.getElementById('side-menu'), overlay=document.getElementById('overlay');
   document.getElementById('menuBtn').addEventListener('click',e=>{e.stopPropagation();toggleMenu(true);});
   overlay.addEventListener('click',()=>toggleMenu(false));
@@ -343,24 +347,48 @@
   }
   function isVisible(id){ return document.getElementById(id).style.display==='block'; }
 
-  // branch change
+  // Branch change + instant UI reset
   const branchSelect=document.getElementById('branch-select');
   currentBranch=branchSelect.value||'Private';
   branchSelect.addEventListener('change',()=>{
     currentBranch=branchSelect.value;
+
+    // instant reset for DDS UI to avoid illusion of stale numbers
+    const incomeEl=document.getElementById('kpi-income');
+    const expenseEl=document.getElementById('kpi-expense');
+    const netEl=document.getElementById('kpi-net');
+    if(incomeEl) incomeEl.textContent='…';
+    if(expenseEl) expenseEl.textContent='…';
+    if(netEl)     netEl.textContent='…';
+    const sumTbl=document.getElementById('summary-table');
+    if(sumTbl) sumTbl.innerHTML='';
+
     if(isVisible('dashboard-section')) loadSvod();
     if(isVisible('dds-section')){ loadSummary(currentMode); updatePeriodLabel(currentMode); }
     if(isVisible('students-section')){ document.getElementById('students-branch-label').innerText=currentBranch; loadStudents(); }
     if(isVisible('staff-section')){ document.getElementById('staff-branch-label').innerText=currentBranch; loadStaff(); }
     if(isVisible('pk-section')){ document.getElementById('pk-branch-label').innerText=currentBranch; loadPK(); }
-    if(isVisible('reports-section')) loadReports();
+    if(isVisible('reports-section'))  loadReports();
   });
 
   // SVOD
   function renderBlock(elId, rows){ document.getElementById(elId).innerHTML=(rows||[]).map(r=>`<tr><td>${r[0]??''}</td><td>${r[1]??''}</td></tr>`).join(''); }
-  function loadSvod(){ fetch('/svod').then(r=>r.json()).then(d=>{ renderBlock('svod-p1',d.p1||[]); renderBlock('svod-p2',d.p2||[]); renderBlock('svod-p3',d.p3||[]); }); }
+  function loadSvod(){
+    const {signal, v} = startReq('svod');
+    const branchAtStart = currentBranch;
+    ['svod-p1','svod-p2','svod-p3'].forEach(id=>document.getElementById(id).innerHTML='');
+    fetch('/svod', { signal })
+      .then(r=>r.json())
+      .then(d=>{
+        if(!stillLatest('svod', v, branchAtStart)) return;
+        renderBlock('svod-p1', d.p1||[]);
+        renderBlock('svod-p2', d.p2||[]);
+        renderBlock('svod-p3', d.p3||[]);
+      })
+      .catch(e=>{ if(e.name!=='AbortError') console.warn('svod error', e); });
+  }
 
-  // helpers
+  // Helpers
   function parseNumber(s){ if(typeof s!=='string') return Number(s)||0; const cleaned=s.replace(/[^\d,.\- ]/g,'').replace(/\s/g,''); return cleaned.includes(',')&&!cleaned.includes('.')?parseFloat(cleaned.replace(',','.'))||0:parseFloat(cleaned)||0; }
   const fmt=n=>Number.isFinite(n)?n.toLocaleString('ru-RU'):String(n);
 
@@ -375,19 +403,30 @@
     tb.innerHTML= body + `<tr class="total"><td>ИТОГО (чистый результат)</td><td style="text-align:right">${fmt(net)}</td></tr>`;
   }
   function loadSummary(mode){
-    fetch(`/summary?mode=${encodeURIComponent(mode)}&branch=${encodeURIComponent(currentBranch)}`)
-      .then(r=>r.json()).then(rows=>{
+    const {signal, v} = startReq('dds');
+    const branchAtStart = currentBranch;
+
+    document.getElementById('kpi-income').textContent='…';
+    document.getElementById('kpi-expense').textContent='…';
+    document.getElementById('kpi-net').textContent='…';
+    document.getElementById('summary-table').innerHTML='';
+
+    fetch(`/summary?mode=${encodeURIComponent(mode)}&branch=${encodeURIComponent(branchAtStart)}`, { signal })
+      .then(r=>r.json())
+      .then(rows=>{
+        if(!stillLatest('dds', v, branchAtStart)) return;
         let income=0, expense=0;
-        rows.forEach(r=>{ if(r.length<2) return; const v=parseNumber(r[1]); if(v>0) income+=v; else expense+=Math.abs(v); });
+        (rows||[]).forEach(r=>{ if(r.length<2) return; const v=parseNumber(r[1]); if(v>0) income+=v; else expense+=Math.abs(v); });
         const net=income-expense;
         document.getElementById('kpi-income').textContent=`${fmt(income)} ₸`;
         document.getElementById('kpi-expense').textContent=`${fmt(expense)} ₸`;
         document.getElementById('kpi-net').textContent=`${fmt(net)} ₸`;
-        buildSummaryTable(rows, net);
-      });
+        buildSummaryTable(rows||[], net);
+      })
+      .catch(e=>{ if(e.name!=='AbortError') console.warn('DDS error', e); });
   }
   function updatePeriodLabel(mode){
-    const label=document.getElementById('period-label'); label.style.display='block';
+    const label=document.getElementById('period-label'); if(!label) return;
     const today=(()=>{const d=new Date(); const t=n=>n<10?`0${n}`:n; return `${t(d.getDate())}.${t(d.getMonth()+1)}.${d.getFullYear()}`;})();
     if(mode==='текущий') label.textContent=`Отчёт на сегодня (${currentBranch}): ${today}`;
     else if(mode==='дата'){
@@ -416,7 +455,7 @@
   }
   document.querySelectorAll('#dds-section .tab').forEach(tab=>tab.addEventListener('click',()=>{ const mode=tab.dataset.mode; currentMode=mode; activateDdsTab(mode); loadSummary(mode); updatePeriodLabel(mode); }));
 
-  // Breakdown modal
+  // Breakdown
   const bdModal=document.getElementById('bd-modal'), bdList=document.getElementById('bd-list'), bdPager=document.getElementById('bd-pager');
   let bdPage=1, bdLimit=50, bdTotal=0;
   document.getElementById('btn-breakdown').addEventListener('click', openBreakdown);
@@ -424,15 +463,22 @@
   document.getElementById('bd-search').addEventListener('input',()=>{clearTimeout(window.__bd_t); window.__bd_t=setTimeout(()=>{bdPage=1; fetchBreakdown();},300);});
   function openBreakdown(){ document.getElementById('bd-title').textContent=`Расшифровка — ${currentBranch} · ${currentMode}`; bdPage=1; fetchBreakdown(); bdModal.classList.add('show'); }
   function fetchBreakdown(){
+    const {signal, v} = startReq('bd');
+    const branchAtStart = currentBranch;
     const search=document.getElementById('bd-search').value.trim();
-    const q=new URLSearchParams({branch:currentBranch, scope:currentMode, page:bdPage, limit:bdLimit, search});
-    fetch(`/breakdown?${q.toString()}`).then(r=>r.json()).then(d=>{
-      bdTotal=d.total||0; renderBreakdown(d.data||[]);
-      const from=Math.min((bdPage-1)*bdLimit+1, bdTotal), to=Math.min(bdPage*bdLimit, bdTotal);
-      bdPager.innerHTML=`${bdTotal?from:0}-${to} из ${bdTotal} &nbsp;
-        <button class="btn-back" ${bdPage<=1?'disabled':''} onclick="bdPrev()">← Назад</button>
-        <button class="btn-back" ${bdPage*bdLimit>=bdTotal?'disabled':''} onclick="bdNext()">Вперёд →</button>`;
-    });
+    const q=new URLSearchParams({branch:branchAtStart, scope:currentMode, page:bdPage, limit:bdLimit, search});
+    bdList.innerHTML='';
+    fetch(`/breakdown?${q.toString()}`, { signal })
+      .then(r=>r.json())
+      .then(d=>{
+        if(!stillLatest('bd', v, branchAtStart)) return;
+        bdTotal=d.total||0; renderBreakdown(d.data||[]);
+        const from=Math.min((bdPage-1)*bdLimit+1, bdTotal), to=Math.min(bdPage*bdLimit, bdTotal);
+        bdPager.innerHTML=`${bdTotal?from:0}-${to} из ${bdTotal} &nbsp;
+          <button class="btn-back" ${bdPage<=1?'disabled':''} onclick="bdPrev()">← Назад</button>
+          <button class="btn-back" ${bdPage*bdLimit>=bdTotal?'disabled':''} onclick="bdNext()">Вперёд →</button>`;
+      })
+      .catch(e=>{ if(e.name!=='AbortError') console.warn('bd error', e); });
   }
   window.bdPrev=()=>{ if(bdPage>1){ bdPage--; fetchBreakdown(); } };
   window.bdNext=()=>{ if(bdPage*bdLimit<bdTotal){ bdPage++; fetchBreakdown(); } };
@@ -449,8 +495,18 @@
   function closeStudents(){ showOnly('dashboard-section'); }
   function studentsSetMonth(){ const m=document.getElementById('students-month-select').value;
     fetch(`/students-set-month?value=${encodeURIComponent(m)}&branch=${encodeURIComponent(currentBranch)}`).then(()=>loadStudents()); }
-  function loadStudents(){ fetch(`/students?branch=${encodeURIComponent(currentBranch)}&mode=${encodeURIComponent(studentsMode)}`)
-      .then(r=>r.json()).then(d=>{ const rows=d?.rows||[]; document.getElementById('students-table').innerHTML=rows.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join(''); }); }
+  function loadStudents(){
+    const {signal, v} = startReq('students');
+    const b=currentBranch;
+    document.getElementById('students-table').innerHTML='';
+    fetch(`/students?branch=${encodeURIComponent(b)}&mode=${encodeURIComponent(studentsMode)}`, {signal})
+      .then(r=>r.json()).then(d=>{
+        if(!stillLatest('students', v, b)) return;
+        const rows=d?.rows||[];
+        document.getElementById('students-table').innerHTML =
+          rows.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join('');
+      }).catch(e=>{ if(e.name!=='AbortError') console.warn('students', e); });
+  }
   document.getElementById('students-tab-current').addEventListener('click',()=>{ studentsMode='current';
     document.getElementById('students-tab-current').classList.add('active'); document.getElementById('students-tab-month').classList.remove('active');
     document.getElementById('students-month-controls').style.display='none'; document.getElementById('students-period-label').innerText='Отчет (текущий)'; loadStudents(); });
@@ -462,8 +518,18 @@
   function closeStaff(){ showOnly('dashboard-section'); }
   function staffSetMonth(){ const m=document.getElementById('staff-month-select').value;
     fetch(`/staff-set-month?value=${encodeURIComponent(m)}&branch=${encodeURIComponent(currentBranch)}`).then(()=>loadStaff()); }
-  function loadStaff(){ fetch(`/staff?branch=${encodeURIComponent(currentBranch)}&mode=${encodeURIComponent(staffMode)}`)
-      .then(r=>r.json()).then(d=>{ const rows=d?.rows||[]; document.getElementById('staff-table').innerHTML=rows.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join(''); }); }
+  function loadStaff(){
+    const {signal, v} = startReq('staff');
+    const b=currentBranch;
+    document.getElementById('staff-table').innerHTML='';
+    fetch(`/staff?branch=${encodeURIComponent(b)}&mode=${encodeURIComponent(staffMode)}`, {signal})
+      .then(r=>r.json()).then(d=>{
+        if(!stillLatest('staff', v, b)) return;
+        const rows=d?.rows||[];
+        document.getElementById('staff-table').innerHTML =
+          rows.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join('');
+      }).catch(e=>{ if(e.name!=='AbortError') console.warn('staff', e); });
+  }
   document.getElementById('staff-tab-current').addEventListener('click',()=>{ staffMode='current';
     document.getElementById('staff-tab-current').classList.add('active'); document.getElementById('staff-tab-month').classList.remove('active');
     document.getElementById('staff-month-controls').style.display='none'; document.getElementById('staff-period-label').innerText='Отчет (текущий)'; loadStaff(); });
@@ -473,31 +539,50 @@
 
   // PK
   function closePK(){ showOnly('dashboard-section'); }
-  function loadPK(){ fetch(`/pk?branch=${encodeURIComponent(currentBranch)}`).then(r=>r.json()).then(d=>{
-      const header=d?.header||[], table=d?.table||[];
-      document.getElementById('pk-header').innerHTML=header.map(r=>`<tr><td>${r[0]??''}</td><td>${r[1]??''}</td></tr>`).join('');
-      document.getElementById('pk-table').innerHTML=table.map(r=>{
-        const date=r[0]??'', inout=r[1]??'', bal=r[2]??'';
-        let balClass='', balVal=bal; const numBal=parseNumber(bal);
-        if(Number.isFinite(numBal)){ balClass=numBal<0?'pk-bad pk-neg':(numBal>=0?'pk-pos':''); balVal=fmt(numBal); }
-        let inoutHtml=''; if(inout){ const parts=inout.split('\n');
-          inoutHtml = parts.length===2 ? `<div class="pk-inout"><div class="pk-income">↑ ${parts[0]}</div><div class="pk-expense">↓ ${parts[1]}</div></div>` : inout; }
-        return `<tr><td>${date}</td><td>${inoutHtml}</td><td class="${balClass}">${balVal}</td></tr>`;
-      }).join('');
-  }); }
+  function loadPK(){
+    const {signal, v} = startReq('pk');
+    const b=currentBranch;
+    document.getElementById('pk-header').innerHTML='';
+    document.getElementById('pk-table').innerHTML='';
+    fetch(`/pk?branch=${encodeURIComponent(b)}`, {signal})
+      .then(r=>r.json())
+      .then(d=>{
+        if(!stillLatest('pk', v, b)) return;
+        const header=d?.header||[], table=d?.table||[];
+        document.getElementById('pk-header').innerHTML=header.map(r=>`<tr><td>${r[0]??''}</td><td>${r[1]??''}</td></tr>`).join('');
+        document.getElementById('pk-table').innerHTML=table.map(r=>{
+          const date=r[0]??'', inout=r[1]??'', bal=r[2]??'';
+          let balClass='', balVal=bal; const numBal=parseNumber(bal);
+          if(Number.isFinite(numBal)){ balClass=numBal<0?'pk-bad pk-neg':(numBal>=0?'pk-pos':''); balVal=fmt(numBal); }
+          let inoutHtml=''; if(inout){ const parts=inout.split('\n');
+            inoutHtml = parts.length===2 ? `<div class="pk-inout"><div class="pk-income">↑ ${parts[0]}</div><div class="pk-expense">↓ ${parts[1]}</div></div>` : inout; }
+          return `<tr><td>${date}</td><td>${inoutHtml}</td><td class="${balClass}">${balVal}</td></tr>`;
+        }).join('');
+      })
+      .catch(e=>{ if(e.name!=='AbortError') console.warn('pk error', e); });
+  }
 
   // Reports
   function closeReports(){ showOnly('dashboard-section'); }
-  function loadReports(){ fetch('/reports').then(r=>r.json()).then(d=>{
-      const months=d?.months||[];
-      const html=months.map(m=>`<div style="margin-bottom:12px;">
-          <h4 style="margin:0 0 6px;">${m.title}</h4>
-          ${(m.files||[]).map(f=>`<div class="dash-block" style="padding:12px 14px;display:flex;align-items:center;gap:10px;">
-              <a href="${f.url}" target="_blank" style="text-decoration:none;color:var(--tg-theme-link-color);font-weight:800">📄 ${f.name}</a>
-          </div>`).join('')}
-        </div>`).join('');
-      document.getElementById('reports-list').innerHTML=html || '<div class="dash-block">Нет доступных отчётов</div>';
-  }); }
+  function loadReports(){
+    const {signal, v} = startReq('reports');
+    const b=currentBranch; // although backend returns common list, keep guard uniform
+    document.getElementById('reports-list').innerHTML='';
+    fetch('/reports', {signal})
+      .then(r=>r.json())
+      .then(d=>{
+        if(!stillLatest('reports', v, b)) return;
+        const months=d?.months||[];
+        const html=months.map(m=>`<div style="margin-bottom:12px;">
+            <h4 style="margin:0 0 6px;">${m.title}</h4>
+            ${(m.files||[]).map(f=>`<div class="dash-block" style="padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                <a href="${f.url}" target="_blank" style="text-decoration:none;color:var(--tg-theme-link-color);font-weight:800">📄 ${f.name}</a>
+            </div>`).join('')}
+          </div>`).join('');
+        document.getElementById('reports-list').innerHTML=html || '<div class="dash-block">Нет доступных отчётов</div>';
+      })
+      .catch(e=>{ if(e.name!=='AbortError') console.warn('reports error', e); });
+  }
 
   // Upload / delete
   document.getElementById('upload-form').addEventListener('submit',async (e)=>{
@@ -516,17 +601,19 @@
     const t=await res.json().catch(()=>({error:'Ошибка'})); alert(t.error||'Удалено'); loadReports();
   });
 
-  // init
+  // Init
   document.addEventListener('DOMContentLoaded',()=>{
     fillMonthSelect(document.getElementById('month-select'));
     fillMonthSelect(document.getElementById('students-month-select'));
     fillMonthSelect(document.getElementById('staff-month-select'));
 
-    // по умолчанию: главная
     showOnly('dashboard-section');
     loadSvod();
 
-    // автообновление как было
+    document.querySelectorAll('#dds-section .tab').forEach(tab=>tab.addEventListener('click',()=>{
+      const mode=tab.dataset.mode; currentMode=mode; activateDdsTab(mode); loadSummary(mode); updatePeriodLabel(mode);
+    }));
+
     setInterval(()=>{
       if(isVisible('dashboard-section')) loadSvod();
       if(isVisible('dds-section'))      loadSummary(currentMode);
@@ -534,7 +621,7 @@
       if(isVisible('staff-section'))     loadStaff();
       if(isVisible('pk-section'))        loadPK();
       if(isVisible('reports-section'))   loadReports();
-    }, 5000);
+    }, 30000);
   });
 </script>
 </body>
