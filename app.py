@@ -60,7 +60,7 @@ def read_breakdown(branch: str, scope: str):
     b_amount, b_counterparty, b_purpose, b_article = ws.batch_get(BD_RANGES)
     max_len = max(len(b_amount), len(b_article), len(b_counterparty), len(b_purpose))
 
-    def g(a,i): 
+    def g(a,i):
         try:
             v = a[i][0]
             return (v or "").strip()
@@ -70,7 +70,7 @@ def read_breakdown(branch: str, scope: str):
     out=[]
     for i in range(max_len):
         amount=g(b_amount,i); article=g(b_article,i)
-        if not amount and not article: 
+        if not amount and not article:
             continue
         out.append({"amount":amount,"article":article,"counterparty":g(b_counterparty,i),"purpose":g(b_purpose,i)})
     return out
@@ -91,7 +91,7 @@ def breakdown():
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
-# ---------- НОВОЕ: «Свод» на главной (не зависит от филиалов) ----------
+# ---------- «Свод» на главной ----------
 SVOD_KEY = "1FIBAlCkUL2qT9ztd3gfH5kOd3eHLKE53eYKLJzD75dw"
 
 @app.route('/svod')
@@ -103,7 +103,7 @@ def svod():
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
-# ---------- Общие PDF-отчёты ----------
+# ---------- Отчёты ----------
 REPORTS_ROOT = Path(os.getenv("REPORTS_DIR","static/reports")); REPORTS_ROOT.mkdir(parents=True, exist_ok=True)
 RU_MONTHS = {"01":"Январь","02":"Февраль","03":"Март","04":"Апрель","05":"Май","06":"Июнь","07":"Июль","08":"Август","09":"Сентябрь","10":"Октябрь","11":"Ноябрь","12":"Декабрь"}
 
@@ -285,7 +285,7 @@ def balance_trend():
 def apply_headers(resp):
     resp.headers["ngrok-skip-browser-warning"]="true"; return resp
 
-# -------- Telegram webhook (как было) --------
+# -------- Telegram webhook --------
 WEBAPP_URL = os.getenv("WEBAPP_URL","https://finance-miniapp.onrender.com/app").strip()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN","").strip()
 TG_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}" if TELEGRAM_TOKEN else ""
