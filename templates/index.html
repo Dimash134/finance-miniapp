@@ -6,240 +6,834 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-  :root{ --green:#4caf50; --green-2:#2e7d32; --bg:#f6f9fc; --red:#d32f2f;
-         --card:#ffffff; --muted:#777; --line:#e7e7e7; --danger-bg:#ffebee; --danger-text:#b71c1c;}
-  *{box-sizing:border-box} html,body{height:100%}
-  body{margin:0; font-family:Arial, sans-serif; background:var(--bg);
-       padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);}
-  .top-bar{position:sticky; top:0; z-index:100; display:flex; gap:12px; align-items:center; justify-content:space-between;
-           background:var(--green); color:#fff; padding:10px 16px;}
-  .branch-select{background:#fff; color:#111; border:0; border-radius:8px; padding:8px 10px; min-width:160px; font-size:14px;}
-  .menu-button{background:#fff; color:var(--green); border:0; border-radius:8px; padding:8px 12px; font-weight:700; cursor:pointer;}
+  :root {
+    --tg-theme-bg-color: #ffffff;
+    --tg-theme-text-color: #000000;
+    --tg-theme-hint-color: #999999;
+    --tg-theme-link-color: #2481cc;
+    --tg-theme-button-color: #2481cc;
+    --tg-theme-button-text-color: #ffffff;
+    --tg-theme-secondary-bg-color: #f4f4f5;
+    
+    --primary: #3b82f6;
+    --primary-dark: #2563eb;
+    --primary-light: #60a5fa;
+    --success: #10b981;
+    --success-dark: #059669;
+    --danger: #ef4444;
+    --danger-dark: #dc2626;
+    --warning: #f59e0b;
+    --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --card-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+    --card-shadow-hover: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+    --border-radius: 16px;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
 
-  .side-menu{position:fixed; top:0; right:-270px; width:270px; height:100%; background:#fff; box-shadow:-2px 0 10px rgba(0,0,0,.15);
-             padding:18px; transition:right .25s ease; z-index:1000;}
-  .side-menu.open{right:0} .side-menu h3{margin:0 0 10px}
-  .side-menu button{display:block; width:100%; margin:8px 0; padding:12px; font-size:16px; background:#f2f2f2; border:none; border-radius:10px; cursor:pointer}
-  .overlay{position:fixed; inset:0; background:rgba(0,0,0,.1); opacity:0; pointer-events:none; transition:opacity .2s; z-index:900}
-  .overlay.show{opacity:1; pointer-events:auto}
+  [data-theme="dark"] {
+    --tg-theme-bg-color: #18181b;
+    --tg-theme-text-color: #ffffff;
+    --tg-theme-hint-color: #71717a;
+    --tg-theme-secondary-bg-color: #27272a;
+  }
 
-  .container{padding:16px; max-width:900px; margin:0 auto}
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 
-  /* Главная — три блока вертикально без заголовков */
-  .dash-block{background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:12px;}
-  .dash-block table{width:100%; border-collapse:collapse}
-  .dash-block td{padding:8px 6px; border-bottom:1px solid #eee; font-size:15px}
-  .dash-block tr:last-child td{border-bottom:none}
+  html, body {
+    height: 100%;
+    overflow-x: hidden;
+  }
 
-  /* Таблицы/контролы ДДС и прочего */
-  .tabs{display:flex; gap:8px; justify-content:center; margin:14px 0 8px; flex-wrap:wrap}
-  .tab{padding:8px 14px; background:#e0e0e0; border-radius:18px; cursor:pointer; font-weight:700}
-  .tab.active{background:var(--green); color:#fff}
-  .controls{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:8px}
-  .controls input, .controls button, .controls select{padding:10px 12px; border-radius:8px; border:1px solid #ddd; font-size:14px; background:#fff; min-height:40px;}
-  .period-label{text-align:center; font-weight:800; margin:10px 0; color:#111}
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--tg-theme-bg-color);
+    color: var(--tg-theme-text-color);
+    line-height: 1.6;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    transition: var(--transition);
+  }
 
-  /* KPI — старый дизайн */
-  .kpis{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; max-width:720px; margin:0 auto 10px}
-  .kpi{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; text-align:center}
-  .kpi .label{font-size:12px; color:var(--muted); margin-bottom:4px}
-  .kpi .value{font-size:18px; font-weight:800}
-  .kpi.income .value{color:var(--green-2)} .kpi.expense .value{color:var(--red)} .kpi.net .value{color:#0f3d62}
+  .top-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg-gradient);
+    backdrop-filter: blur(10px);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
 
-  table{width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden}
-  td{padding:10px 12px; border-bottom:1px solid var(--line); font-size:15px}
-  tr:last-child td{border-bottom:none}
-  tr.positive td:nth-child(2){color:var(--green-2); font-weight:800}
-  tr.negative td:nth-child(2){color:var(--red); font-weight:800}
-  tr.total td{font-weight:900; background:#fafafa; border-top:2px solid var(--line)}
+  .branch-select {
+    background: rgba(255,255,255,0.95);
+    color: #1f2937;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    min-width: 160px;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
 
-  /* Платёжный календарь — карточки */
-  #pk-header{border:0; background:transparent; border-collapse:separate; border-spacing:0 8px}
-  #pk-header td{background:#fff; border:1px solid var(--line); padding:12px 14px; font-size:15px; font-weight:700;}
-  #pk-header td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
-  #pk-header td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px; text-align:right}
+  .branch-select:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
 
-  #pk-table{border:0; background:transparent; border-collapse:separate; border-spacing:0 8px;}
-  #pk-table td{background:#fff; border:1px solid var(--line); padding:12px 14px; font-size:15px;}
-  #pk-table td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
-  #pk-table td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
+  .menu-button {
+    background: rgba(255,255,255,0.95);
+    color: #667eea;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 20px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
 
-  .pk-pos{color:var(--green-2); font-weight:700}
-  .pk-neg{color:var(--red); font-weight:700}
-  .pk-bad{background:var(--danger-bg) !important; color:var(--danger-text); font-weight:800}
-  .pk-inout{display:flex; flex-direction:column; gap:6px; align-items:center; justify-content:center;}
-  .pk-inout .pk-income{ color:var(--green-2); font-weight:800; line-height:1; }
-  .pk-inout .pk-expense{ color:var(--red);     font-weight:800; line-height:1; }
+  .menu-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    background: white;
+  }
 
-  /* Отчёты (PDF) */
-  .report-file{display:flex; gap:10px; align-items:center; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#fafafa; margin:6px 0;}
-  .report-file a{flex:1; text-decoration:none; color:#0f3d62;}
+  .side-menu {
+    position: fixed;
+    top: 0;
+    right: -300px;
+    width: 300px;
+    height: 100%;
+    background: var(--tg-theme-bg-color);
+    box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+    padding: 24px 20px;
+    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1000;
+    overflow-y: auto;
+  }
 
-  /* Модалка «Расшифровка» */
-  .modal{position:fixed; inset:0; background:rgba(0,0,0,.2); display:none; align-items:center; justify-content:center; z-index:1200}
-  .modal.show{display:flex}
-  .modal-body{width:min(96vw,640px); max-height:calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-              overflow:auto; background:#fff; border-radius:12px; padding:12px}
-  .bd-head{display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap}
-  .bd-head input{padding:8px; border:1px solid #ddd; border-radius:8px; flex:1 1 220px; min-width:0}
-  .row{border-bottom:1px solid #eee; padding:10px 6px; cursor:pointer}
-  .top{display:flex; justify-content:space-between; gap:8px; font-weight:600}
-  .bottom{margin-top:6px; font-size:14px; color:#444; display:none}
-  .row.open .bottom{display:block}
-  .amount{white-space:nowrap}
-  .amt-pos{color:var(--green-2); font-weight:800} .amt-neg{color:var(--red); font-weight:800}
+  .side-menu.open {
+    right: 0;
+  }
 
-  @media (max-width:560px){
-    .container{padding:12px}
-    .kpis{grid-template-columns:1fr; gap:8px}
-    .kpi .value{font-size:16px}
-    td:first-child{max-width:70vw; word-break:break-word}
+  .side-menu h3 {
+    margin: 0 0 20px;
+    font-size: 24px;
+    font-weight: 800;
+    background: var(--bg-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .side-menu button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    margin: 12px 0;
+    padding: 16px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    background: var(--tg-theme-secondary-bg-color);
+    color: var(--tg-theme-text-color);
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+
+  .side-menu button:hover {
+    transform: translateX(-4px);
+    background: var(--bg-gradient);
+    color: white;
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 900;
+    backdrop-filter: blur(4px);
+  }
+
+  .overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .container {
+    padding: 20px;
+    max-width: 900px;
+    margin: 0 auto;
+    animation: fadeIn 0.4s ease-in;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .dash-block {
+    background: var(--tg-theme-secondary-bg-color);
+    border-radius: var(--border-radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--card-shadow);
+    transition: var(--transition);
+    border: 1px solid rgba(0,0,0,0.05);
+  }
+
+  .dash-block:hover {
+    box-shadow: var(--card-shadow-hover);
+    transform: translateY(-2px);
+  }
+
+  .dash-block table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .dash-block td {
+    padding: 12px 8px;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    font-size: 15px;
+  }
+
+  .dash-block tr:last-child td {
+    border-bottom: none;
+  }
+
+  .dash-block td:first-child {
+    color: var(--tg-theme-hint-color);
+    font-weight: 500;
+  }
+
+  .dash-block td:last-child {
+    text-align: right;
+    font-weight: 700;
+    color: var(--tg-theme-text-color);
+  }
+
+  .tabs {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 20px 0;
+    flex-wrap: wrap;
+    padding: 8px;
+    background: var(--tg-theme-secondary-bg-color);
+    border-radius: 14px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+  }
+
+  .tab {
+    padding: 10px 20px;
+    background: transparent;
+    color: var(--tg-theme-hint-color);
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 14px;
+    transition: var(--transition);
+    border: none;
+  }
+
+  .tab:hover {
+    background: rgba(59,130,246,0.1);
+    color: var(--primary);
+  }
+
+  .tab.active {
+    background: var(--bg-gradient);
+    color: white;
+    box-shadow: 0 4px 8px rgba(102,126,234,0.3);
+  }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .controls input, .controls button, .controls select {
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 2px solid rgba(0,0,0,0.1);
+    font-size: 14px;
+    background: var(--tg-theme-secondary-bg-color);
+    color: var(--tg-theme-text-color);
+    transition: var(--transition);
+    font-weight: 600;
+  }
+
+  .controls input:focus, .controls select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+  }
+
+  .controls button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+
+  .controls button:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .period-label {
+    text-align: center;
+    font-weight: 800;
+    font-size: 18px;
+    margin: 16px 0;
+    color: var(--tg-theme-text-color);
+    padding: 16px;
+    background: var(--tg-theme-secondary-bg-color);
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+  }
+
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+  }
+
+  .kpi {
+    background: var(--tg-theme-secondary-bg-color);
+    border-radius: var(--border-radius);
+    padding: 24px 20px;
+    text-align: center;
+    box-shadow: var(--card-shadow);
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--bg-gradient);
+    transform: scaleX(0);
+    transition: transform 0.3s;
+  }
+
+  .kpi:hover::before {
+    transform: scaleX(1);
+  }
+
+  .kpi:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .kpi .label {
+    font-size: 13px;
+    color: var(--tg-theme-hint-color);
+    margin-bottom: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .kpi .value {
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  .kpi.income .value {
+    color: var(--success);
+  }
+
+  .kpi.expense .value {
+    color: var(--danger);
+  }
+
+  .kpi.net .value {
+    background: var(--bg-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--tg-theme-secondary-bg-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+  }
+
+  td {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    font-size: 15px;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr.positive td:nth-child(2) {
+    color: var(--success);
+    font-weight: 800;
+  }
+
+  tr.negative td:nth-child(2) {
+    color: var(--danger);
+    font-weight: 800;
+  }
+
+  tr.total {
+    background: rgba(102,126,234,0.1);
+  }
+
+  tr.total td {
+    font-weight: 900;
+    padding: 16px;
+    border-top: 2px solid rgba(102,126,234,0.2);
+  }
+
+  #pk-header {
+    border: 0;
+    background: transparent;
+    border-collapse: separate;
+    border-spacing: 0 10px;
+    box-shadow: none;
+  }
+
+  #pk-header td {
+    background: var(--tg-theme-secondary-bg-color);
+    padding: 16px 20px;
+    font-size: 15px;
+    font-weight: 700;
+    box-shadow: var(--card-shadow);
+  }
+
+  #pk-header td:first-child {
+    border-radius: 12px 0 0 12px;
+  }
+
+  #pk-header td:last-child {
+    border-radius: 0 12px 12px 0;
+    text-align: right;
+  }
+
+  #pk-table {
+    border: 0;
+    background: transparent;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+    box-shadow: none;
+  }
+
+  #pk-table td {
+    background: var(--tg-theme-secondary-bg-color);
+    padding: 14px 18px;
+    font-size: 14px;
+    box-shadow: var(--card-shadow);
+  }
+
+  #pk-table td:first-child {
+    border-radius: 12px 0 0 12px;
+  }
+
+  #pk-table td:last-child {
+    border-radius: 0 12px 12px 0;
+  }
+
+  .pk-pos {
+    color: var(--success);
+    font-weight: 700;
+  }
+
+  .pk-neg {
+    color: var(--danger);
+    font-weight: 700;
+  }
+
+  .pk-bad {
+    background: rgba(239,68,68,0.1) !important;
+    color: var(--danger);
+    font-weight: 800;
+  }
+
+  .pk-inout {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .pk-inout .pk-income {
+    color: var(--success);
+    font-weight: 800;
+  }
+
+  .pk-inout .pk-expense {
+    color: var(--danger);
+    font-weight: 800;
+  }
+
+  .report-file {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 16px;
+    border-radius: 12px;
+    background: var(--tg-theme-secondary-bg-color);
+    margin: 10px 0;
+    box-shadow: var(--card-shadow);
+    transition: var(--transition);
+  }
+
+  .report-file:hover {
+    transform: translateX(4px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .report-file a {
+    flex: 1;
+    text-decoration: none;
+    color: var(--primary);
+    font-weight: 600;
+  }
+
+  .report-file a:hover {
+    text-decoration: underline;
+  }
+
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    backdrop-filter: blur(8px);
+    padding: 20px;
+  }
+
+  .modal.show {
+    display: flex;
+    animation: fadeIn 0.3s ease-in;
+  }
+
+  .modal-body {
+    width: min(96vw, 680px);
+    max-height: calc(100vh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow: auto;
+    background: var(--tg-theme-bg-color);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: slideUp 0.3s ease-out;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(40px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .bd-head {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .bd-head input {
+    padding: 12px 16px;
+    border: 2px solid rgba(0,0,0,0.1);
+    border-radius: 12px;
+    flex: 1 1 220px;
+    background: var(--tg-theme-secondary-bg-color);
+    color: var(--tg-theme-text-color);
+    font-size: 14px;
+  }
+
+  .bd-head input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+  }
+
+  .row {
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    padding: 16px 10px;
+    cursor: pointer;
+    transition: var(--transition);
+    border-radius: 8px;
+  }
+
+  .row:hover {
+    background: var(--tg-theme-secondary-bg-color);
+  }
+
+  .top {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-weight: 600;
+  }
+
+  .bottom {
+    margin-top: 12px;
+    font-size: 14px;
+    color: var(--tg-theme-hint-color);
+    display: none;
+    padding: 12px;
+    background: var(--tg-theme-secondary-bg-color);
+    border-radius: 8px;
+    line-height: 1.8;
+  }
+
+  .row.open .bottom {
+    display: block;
+    animation: slideDown 0.3s ease-out;
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; max-height: 0; }
+    to { opacity: 1; max-height: 200px; }
+  }
+
+  .amount {
+    white-space: nowrap;
+  }
+
+  .amt-pos {
+    color: var(--success);
+    font-weight: 800;
+  }
+
+  .amt-neg {
+    color: var(--danger);
+    font-weight: 800;
+  }
+
+  .btn-back {
+    background: var(--tg-theme-secondary-bg-color);
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--tg-theme-text-color);
+    transition: var(--transition);
+  }
+
+  .btn-back:hover {
+    background: var(--primary);
+    color: white;
+  }
+
+  @media (max-width: 560px) {
+    .container {
+      padding: 16px;
+    }
+
+    .kpis {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .kpi .value {
+      font-size: 20px;
+    }
+
+    td:first-child {
+      max-width: 65vw;
+      word-break: break-word;
+    }
+
+    .top-bar {
+      padding: 12px 16px;
+    }
   }
 </style>
 </head>
 <body>
   <div class="top-bar">
     <select id="branch-select" class="branch-select">
-      <option value="Private" selected>Private</option>
-      <option value="Highschool">Highschool</option>
-      <option value="Academy">Academy</option>
+      <option value="Private" selected>🏫 Private</option>
+      <option value="Highschool">🎓 Highschool</option>
+      <option value="Academy">📚 Academy</option>
     </select>
-    <button class="menu-button" id="menuBtn">Меню</button>
+    <button class="menu-button" id="menuBtn">☰ Меню</button>
   </div>
 
   <div class="overlay" id="overlay"></div>
   <div class="side-menu" id="side-menu">
-    <h3>Разделы</h3>
-    <!-- Без "Главная" -->
-    <button data-section="dds">ДДС</button>
-    <button data-section="students">Ученики</button>
-    <button data-section="staff">Сотрудники</button>
-    <button data-section="calendar">Платежный календарь</button>
-    <button data-section="report">Отчет</button>
+    <h3>📊 Разделы</h3>
+    <button data-section="dashboard">🏠 Главная</button>
+    <button data-section="dds">💰 ДДС</button>
+    <button data-section="students">👨‍🎓 Ученики</button>
+    <button data-section="staff">👥 Сотрудники</button>
+    <button data-section="calendar">📅 Календарь</button>
+    <button data-section="report">📄 Отчет</button>
   </div>
 
   <div class="container">
-    <!-- Главная (Свод) -->
     <div id="dashboard-section">
       <div class="dash-block"><table id="svod-p1"></table></div>
       <div class="dash-block"><table id="svod-p2"></table></div>
       <div class="dash-block"><table id="svod-p3"></table></div>
     </div>
 
-    <!-- ДДС -->
     <div id="dds-section" style="display:none;">
-      <div class="tabs" style="margin-top:8px;">
-        <div class="tab active" data-mode="текущий">Текущий</div>
-        <div class="tab" data-mode="месяц">Месяц</div>
-        <div class="tab" data-mode="дата">Дата</div>
+      <div class="tabs">
+        <div class="tab active" data-mode="текущий">📊 Текущий</div>
+        <div class="tab" data-mode="месяц">📅 Месяц</div>
+        <div class="tab" data-mode="дата">📆 Дата</div>
       </div>
       <div class="controls" id="controls-date" style="display:none;">
         <input type="date" id="date-input" />
-        <button onclick="setDate()">Установить дату</button>
+        <button onclick="setDate()">✓ Установить дату</button>
       </div>
       <div class="controls" id="controls-month" style="display:none;">
         <select id="month-select"></select>
-        <button onclick="setMonth()">Установить месяц</button>
+        <button onclick="setMonth()">✓ Установить месяц</button>
       </div>
-      <div class="period-label" id="period-label">Отчёт на сегодня</div>
+      <div class="period-label" id="period-label">📊 Отчёт на сегодня</div>
 
       <div class="kpis">
-        <div class="kpi income"><div class="label">Доход</div><div class="value" id="kpi-income">0 ₸</div></div>
-        <div class="kpi expense"><div class="label">Расход</div><div class="value" id="kpi-expense">0 ₸</div></div>
-        <div class="kpi net"><div class="label">Чистый результат</div><div class="value" id="kpi-net">0 ₸</div></div>
+        <div class="kpi income"><div class="label">💚 Доход</div><div class="value" id="kpi-income">0 ₽</div></div>
+        <div class="kpi expense"><div class="label">💔 Расход</div><div class="value" id="kpi-expense">0 ₽</div></div>
+        <div class="kpi net"><div class="label">💎 Результат</div><div class="value" id="kpi-net">0 ₽</div></div>
       </div>
 
       <table id="summary-table"></table>
-      <div style="display:flex; justify-content:flex-end; margin-top:10px;">
-        <button id="btn-breakdown" class="menu-button" style="background:#fff; border:1px solid #ccc; color:#111;">Расшифровка</button>
+      <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+        <button id="btn-breakdown" class="menu-button" style="background:var(--primary); color:white;">🔍 Расшифровка</button>
       </div>
     </div>
 
-    <!-- Ученики -->
     <div id="students-section" style="display:none; padding-top:10px;">
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-        <button onclick="closeStudents()">← Назад</button>
-        <div style="font-weight:700;">Ученики — <span id="students-branch-label">Private</span></div>
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+        <button onclick="closeStudents()" class="btn-back">← Назад</button>
+        <div style="font-weight:700; font-size:18px;">👨‍🎓 Ученики — <span id="students-branch-label">Private</span></div>
       </div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px;">
-        <button id="students-tab-current" class="tab active" style="padding:6px 12px; border-radius:16px;">Текущий</button>
-        <button id="students-tab-month" class="tab" style="padding:6px 12px; border-radius:16px;">Месяц</button>
-        <div id="students-month-controls" style="display:none; margin-left:6px;">
-          <select id="students-month-select"></select>
-          <button onclick="studentsSetMonth()" style="padding:6px 8px; border:1px solid #ccc; border-radius:6px; background:#fff;">Установить месяц</button>
-        </div>
+      <div class="tabs">
+        <button id="students-tab-current" class="tab active">📊 Текущий</button>
+        <button id="students-tab-month" class="tab">📅 Месяц</button>
       </div>
-      <div id="students-period-label" style="font-weight:600; margin-bottom:8px;">Отчет (текущий)</div>
+      <div id="students-month-controls" class="controls" style="display:none;">
+        <select id="students-month-select"></select>
+        <button onclick="studentsSetMonth()">✓ Установить месяц</button>
+      </div>
+      <div id="students-period-label" class="period-label">Отчет (текущий)</div>
       <table id="students-table"></table>
     </div>
 
-    <!-- Сотрудники -->
     <div id="staff-section" style="display:none; padding-top:10px;">
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-        <button onclick="closeStaff()">← Назад</button>
-        <div style="font-weight:700;">Сотрудники — <span id="staff-branch-label">Private</span></div>
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+        <button onclick="closeStaff()" class="btn-back">← Назад</button>
+        <div style="font-weight:700; font-size:18px;">👥 Сотрудники — <span id="staff-branch-label">Private</span></div>
       </div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px;">
-        <button id="staff-tab-current" class="tab active" style="padding:6px 12px; border-radius:16px;">Текущий</button>
-        <button id="staff-tab-month" class="tab" style="padding:6px 12px; border-radius:16px;">Месяц</button>
-        <div id="staff-month-controls" style="display:none; margin-left:6px;">
-          <select id="staff-month-select"></select>
-          <button onclick="staffSetMonth()" style="padding:6px 8px; border:1px solid #ccc; border-radius:6px; background:#fff;">Установить месяц</button>
-        </div>
+      <div class="tabs">
+        <button id="staff-tab-current" class="tab active">📊 Текущий</button>
+        <button id="staff-tab-month" class="tab">📅 Месяц</button>
       </div>
-      <div id="staff-period-label" style="font-weight:600; margin-bottom:8px;">Отчет (текущий)</div>
+      <div id="staff-month-controls" class="controls" style="display:none;">
+        <select id="staff-month-select"></select>
+        <button onclick="staffSetMonth()">✓ Установить месяц</button>
+      </div>
+      <div id="staff-period-label" class="period-label">Отчет (текущий)</div>
       <table id="staff-table"></table>
     </div>
 
-    <!-- Платёжный календарь -->
     <div id="pk-section" style="display:none; padding-top:10px;">
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-        <button onclick="closePK()">← Назад</button>
-        <div style="font-weight:700;">Платежный календарь — <span id="pk-branch-label">Private</span></div>
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+        <button onclick="closePK()" class="btn-back">← Назад</button>
+        <div style="font-weight:700; font-size:18px;">📅 Платежный календарь — <span id="pk-branch-label">Private</span></div>
       </div>
-      <table id="pk-header" style="margin-bottom:10px;"></table>
+      <table id="pk-header" style="margin-bottom:12px;"></table>
       <table id="pk-table"></table>
     </div>
 
-    <!-- Отчёт (PDF архив) -->
     <div id="reports-section" style="display:none; padding-top:10px;">
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-        <button onclick="closeReports()">← Назад</button>
-        <div style="font-weight:700;">Отчёт — общий</div>
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+        <button onclick="closeReports()" class="btn-back">← Назад</button>
+        <div style="font-weight:700; font-size:18px;">📄 Отчёт — общий</div>
       </div>
       <div id="reports-list" style="display:flex; flex-direction:column; gap:12px;"></div>
-      <div id="reports-upload" style="margin-top:16px;">
-        <h4 style="margin:6px 0;">Загрузить PDF</h4>
-        <form id="upload-form" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-          <input type="month" id="upload-ym" required style="padding:8px; border:1px solid #ddd; border-radius:6px;">
-          <input type="file" id="upload-file" accept="application/pdf" required style="padding:8px;">
-          <button type="submit" class="menu-button" style="padding:8px 12px;">Загрузить</button>
-          <button type="button" id="delete-btn" class="menu-button" style="padding:8px 12px; background:#fff; color:#b71c1c; border:1px solid #e2bcbc;">Удалить</button>
+      <div id="reports-upload" style="margin-top:20px; padding:20px; background:var(--tg-theme-secondary-bg-color); border-radius:16px;">
+        <h4 style="margin:0 0 16px; font-size:16px;">📤 Загрузить PDF</h4>
+        <form id="upload-form" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <input type="month" id="upload-ym" required style="padding:12px; border:2px solid rgba(0,0,0,0.1); border-radius:10px; background:var(--tg-theme-bg-color);">
+          <input type="file" id="upload-file" accept="application/pdf" required style="padding:12px;">
+          <button type="submit" class="menu-button" style="background:var(--success); color:white; padding:12px 20px;">⬆ Загрузить</button>
+          <button type="button" id="delete-btn" class="menu-button" style="background:var(--danger); color:white; padding:12px 20px;">🗑 Удалить</button>
         </form>
-        <div id="upload-msg" style="margin-top:6px; color:#2e7d32; font-weight:700;"></div>
+        <div id="upload-msg" style="margin-top:10px; color:var(--success); font-weight:700;"></div>
       </div>
     </div>
   </div>
 
-  <!-- Модалка «Расшифровка» -->
   <div class="modal" id="bd-modal">
     <div class="modal-body">
       <div class="bd-head">
-        <div id="bd-title" style="font-weight:800; margin-right:auto;">Расшифровка</div>
-        <input id="bd-search" placeholder="Поиск по контрагенту/назначению/статье">
-        <button id="bd-close" class="menu-button" style="background:#fff; border:1px solid #ccc; color:#111;">Закрыть</button>
+        <div id="bd-title" style="font-weight:800; font-size:18px; margin-right:auto;">🔍 Расшифровка</div>
+        <input id="bd-search" placeholder="🔎 Поиск...">
+        <button id="bd-close" class="menu-button" style="background:var(--danger); color:white;">✕ Закрыть</button>
       </div>
       <div id="bd-list"></div>
-      <div id="bd-pager" style="margin-top:8px; color:#666; font-size:13px;"></div>
+      <div id="bd-pager" style="margin-top:16px; color:var(--tg-theme-hint-color); font-size:14px; text-align:center;"></div>
     </div>
   </div>
 
 <script>
+  const tg = window.Telegram?.WebApp;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    const theme = tg.colorScheme || 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+    if (theme === 'dark') {
+      document.documentElement.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#18181b');
+      document.documentElement.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#ffffff');
+      document.documentElement.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || '#27272a');
+    }
+  }
+
   const MONTHS=[{label:'Сентябрь',value:9},{label:'Октябрь',value:10},{label:'Ноябрь',value:11},{label:'Декабрь',value:12},{label:'Январь',value:1},{label:'Февраль',value:2},{label:'Март',value:3},{label:'Апрель',value:4},{label:'Май',value:5},{label:'Июнь',value:6}];
   function fillMonthSelect(sel){ sel.innerHTML=MONTHS.map(m=>`<option value="${m.value}">${m.label}</option>`).join(''); }
   let currentMode='текущий'; let currentBranch='Private'; let studentsMode='current'; let staffMode='current';
 
-  // меню
   const menu=document.getElementById('side-menu'); const overlay=document.getElementById('overlay');
   document.getElementById('menuBtn').addEventListener('click',e=>{e.stopPropagation();toggleMenu(true);});
   overlay.addEventListener('click',()=>toggleMenu(false));
@@ -247,15 +841,12 @@
   function toggleMenu(open){ const toOpen=open ?? !menu.classList.contains('open'); if(toOpen){menu.classList.add('open');overlay.classList.add('show');} else {menu.classList.remove('open');overlay.classList.remove('show');}}
   menu.querySelectorAll('button[data-section]').forEach(btn=>{
     btn.addEventListener('click',()=>{ const sec=btn.dataset.section; toggleMenu(false);
-      showOnly(sec==='dds'?'dds-section':
-               sec==='students'?'students-section':
-               sec==='staff'?'staff-section':
-               sec==='calendar'?'pk-section':'reports-section');
-      if(sec==='dds'){ loadSummary(currentMode); updatePeriodLabel(currentMode); }
-      if(sec==='students'){ document.getElementById('students-branch-label').innerText=currentBranch; loadStudents(); }
-      if(sec==='staff'){ document.getElementById('staff-branch-label').innerText=currentBranch; loadStaff(); }
-      if(sec==='calendar'){ document.getElementById('pk-branch-label').innerText=currentBranch; loadPK(); }
-      if(sec==='report'){ loadReports(); }
+      if(sec==='dashboard'){ showOnly('dashboard-section'); loadSvod(); }
+      else if(sec==='dds'){ showOnly('dds-section'); loadSummary(currentMode); updatePeriodLabel(currentMode); }
+      else if(sec==='students'){ showOnly('students-section'); document.getElementById('students-branch-label').innerText=currentBranch; loadStudents(); }
+      else if(sec==='staff'){ showOnly('staff-section'); document.getElementById('staff-branch-label').innerText=currentBranch; loadStaff(); }
+      else if(sec==='calendar'){ showOnly('pk-section'); document.getElementById('pk-branch-label').innerText=currentBranch; loadPK(); }
+      else if(sec==='report'){ showOnly('reports-section'); loadReports(); }
     });
   });
 
@@ -269,16 +860,16 @@
   currentBranch=branchSelect.value||'Private';
   branchSelect.addEventListener('change',()=>{
     currentBranch=branchSelect.value;
+    if(isVisible('dashboard-section')) loadSvod();
     if(isVisible('dds-section')){ loadSummary(currentMode); updatePeriodLabel(currentMode); }
     if(isVisible('students-section')){ document.getElementById('students-branch-label').innerText=currentBranch; loadStudents(); }
     if(isVisible('staff-section')){ document.getElementById('staff-branch-label').innerText=currentBranch; loadStaff(); }
     if(isVisible('pk-section')){ document.getElementById('pk-branch-label').innerText=currentBranch; loadPK(); }
-    if(isVisible('reports-section'))  loadReports();
+    if(isVisible('reports-section')) loadReports();
   });
 
-  // ===== Главная (Свод)
   function renderBlock(elId, rows){
-    const html=(rows||[]).map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join('');
+    const html=(rows||[]).map(r=>`<tr><td>${r[0]??''}</td><td>${r[1]??''}</td></tr>`).join('');
     document.getElementById(elId).innerHTML=html;
   }
   function loadSvod(){
@@ -289,10 +880,8 @@
     });
   }
 
-  // ===== ДДС
   function parseNumber(s){ if(typeof s!=='string') return Number(s)||0; const cleaned=s.replace(/[^\d,.\- ]/g,'').replace(/\s/g,''); return cleaned.includes(',')&&!cleaned.includes('.')?parseFloat(cleaned.replace(',','.'))||0:parseFloat(cleaned)||0; }
   const fmt=n=>Number.isFinite(n)?n.toLocaleString('ru-RU'):String(n);
-  const fmt2=n=>Number.isFinite(n)?n.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}):String(n);
 
   function buildSummaryTable(rows, net){
     const tb=document.getElementById('summary-table');
@@ -301,7 +890,7 @@
       const cls = val>0?'positive':(val<0?'negative':'');
       return `<tr class="${cls}"><td>${name}</td><td style="text-align:right">${fmt(val)}</td></tr>`;
     }).join('');
-    tb.innerHTML = body + `<tr class="total"><td>ИТОГО (чистый результат)</td><td style="text-align:right">${fmt(net)}</td></tr>`;
+    tb.innerHTML = body + `<tr class="total"><td>💎 ИТОГО (чистый результат)</td><td style="text-align:right">${fmt(net)}</td></tr>`;
   }
   function loadSummary(mode){
     fetch(`/summary?mode=${encodeURIComponent(mode)}&branch=${encodeURIComponent(currentBranch)}`)
@@ -309,22 +898,22 @@
         let income=0, expense=0;
         rows.forEach(r=>{ if(r.length<2) return; const v=parseNumber(r[1]); if(v>0) income+=v; else expense+=Math.abs(v); });
         const net=income-expense;
-        document.getElementById('kpi-income').textContent=`${fmt(income)} ₸`;
-        document.getElementById('kpi-expense').textContent=`${fmt(expense)} ₸`;
-        document.getElementById('kpi-net').textContent=`${fmt(net)} ₸`;
+        document.getElementById('kpi-income').textContent=`${fmt(income)} ₽`;
+        document.getElementById('kpi-expense').textContent=`${fmt(expense)} ₽`;
+        document.getElementById('kpi-net').textContent=`${fmt(net)} ₽`;
         buildSummaryTable(rows, net);
       });
   }
   function updatePeriodLabel(mode){
     const label=document.getElementById('period-label');
     const today=(()=>{const d=new Date(); const t=n=>n<10?`0${n}`:n; return `${t(d.getDate())}.${t(d.getMonth()+1)}.${d.getFullYear()}`;})();
-    if(mode==='текущий') label.textContent=`Отчёт на сегодня (${currentBranch}): ${today}`;
+    if(mode==='текущий') label.textContent=`📊 Отчёт на сегодня (${currentBranch}): ${today}`;
     else if(mode==='дата'){
       const v=document.getElementById('date-input').value;
-      label.textContent = v ? `Отчёт на ${v.split('-').reverse().join('.')} (${currentBranch})` : `Отчёт на выбранную дату (${currentBranch})`;
+      label.textContent = v ? `📆 Отчёт на ${v.split('-').reverse().join('.')} (${currentBranch})` : `📆 Отчёт на выбранную дату (${currentBranch})`;
     }else{
       const mSel=document.getElementById('month-select'); const lab=mSel.options[mSel.selectedIndex]?.text||'месяц';
-      label.textContent=`Отчёт за месяц: ${lab} (${currentBranch})`;
+      label.textContent=`📅 Отчёт за месяц: ${lab} (${currentBranch})`;
     }
   }
   function activateDdsTab(mode){
@@ -344,20 +933,19 @@
       .then(()=>{ currentMode='месяц'; activateDdsTab('месяц'); loadSummary('месяц'); updatePeriodLabel('месяц'); document.activeElement?.blur(); });
   }
 
-  // Расшифровка
   const bdModal=document.getElementById('bd-modal'); const bdList=document.getElementById('bd-list'); const bdPager=document.getElementById('bd-pager');
   let bdPage=1, bdLimit=50, bdTotal=0;
   document.getElementById('btn-breakdown').addEventListener('click', openBreakdown);
   document.getElementById('bd-close').addEventListener('click', ()=>bdModal.classList.remove('show'));
   document.getElementById('bd-search').addEventListener('input',()=>{clearTimeout(window.__bd_t); window.__bd_t=setTimeout(()=>{bdPage=1; fetchBreakdown();},300);});
-  function openBreakdown(){ document.getElementById('bd-title').textContent=`Расшифровка — ${currentBranch} · ${currentMode}`; bdPage=1; fetchBreakdown(); bdModal.classList.add('show'); }
+  function openBreakdown(){ document.getElementById('bd-title').textContent=`🔍 Расшифровка — ${currentBranch} · ${currentMode}`; bdPage=1; fetchBreakdown(); bdModal.classList.add('show'); }
   function fetchBreakdown(){
     const search=document.getElementById('bd-search').value.trim();
     const q=new URLSearchParams({branch:currentBranch, scope:currentMode, page:bdPage, limit:bdLimit, search});
     fetch(`/breakdown?${q.toString()}`).then(r=>r.json()).then(d=>{
       bdTotal=d.total||0; renderBreakdown(d.data||[]);
       const from=Math.min((bdPage-1)*bdLimit+1, bdTotal), to=Math.min(bdPage*bdLimit, bdTotal);
-      bdPager.innerHTML=`${bdTotal?from:0}-${to} из ${bdTotal}&nbsp;&nbsp;<button ${bdPage<=1?'disabled':''} onclick="bdPrev()">Назад</button> <button ${bdPage*bdLimit>=bdTotal?'disabled':''} onclick="bdNext()">Вперёд</button>`;
+      bdPager.innerHTML=`${bdTotal?from:0}-${to} из ${bdTotal}&nbsp;&nbsp;<button class="controls button" ${bdPage<=1?'disabled':''} onclick="bdPrev()">← Назад</button> <button class="controls button" ${bdPage*bdLimit>=bdTotal?'disabled':''} onclick="bdNext()">Вперёд →</button>`;
     });
   }
   window.bdPrev=()=>{ if(bdPage>1){ bdPage--; fetchBreakdown(); } };
@@ -365,86 +953,80 @@
   function renderBreakdown(rows){
     bdList.innerHTML = rows.map(x=>{
       const raw=(x.amount||'').toString(); const val=parseNumber(raw); const cls=Number.isFinite(val)?(val<0?'amt-neg':'amt-pos'):'';
-      return `<div class="row"><div class="top"><div>${x.article||''}</div><div class="amount ${cls}">${raw}</div></div><div class="bottom"><div><b>Контрагент:</b> ${x.counterparty||'-'}</div><div><b>Назначение:</b> ${x.purpose||'-'}</div></div></div>`;
+      return `<div class="row"><div class="top"><div>${x.article||''}</div><div class="amount ${cls}">${raw}</div></div><div class="bottom"><div><b>📋 Контрагент:</b> ${x.counterparty||'-'}</div><div><b>📝 Назначение:</b> ${x.purpose||'-'}</div></div></div>`;
     }).join('');
     bdList.querySelectorAll('.row').forEach(r=>r.addEventListener('click',()=>r.classList.toggle('open')));
   }
 
-  // Ученики
-  function openStudents(){ showOnly('students-section'); document.getElementById('students-branch-label').innerText=currentBranch; loadStudents(); }
   function closeStudents(){ showOnly('dashboard-section'); }
   function studentsSetMonth(){ const m=document.getElementById('students-month-select').value; fetch(`/students-set-month?value=${encodeURIComponent(m)}&branch=${encodeURIComponent(currentBranch)}`).then(()=>loadStudents()); }
   function loadStudents(){ fetch(`/students?branch=${encodeURIComponent(currentBranch)}&mode=${encodeURIComponent(studentsMode)}`).then(r=>r.json()).then(d=>{ const rows=d?.rows||[]; document.getElementById('students-table').innerHTML=rows.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join(''); }); }
-  document.getElementById('students-tab-current')?.addEventListener('click',()=>{ studentsMode='current'; document.getElementById('students-tab-current').classList.add('active'); document.getElementById('students-tab-month').classList.remove('active'); document.getElementById('students-month-controls').style.display='none'; document.getElementById('students-period-label').innerText='Отчет (текущий)'; loadStudents(); });
-  document.getElementById('students-tab-month')?.addEventListener('click',()=>{ studentsMode='month'; document.getElementById('students-tab-current').classList.remove('active'); document.getElementById('students-tab-month').classList.add('active'); document.getElementById('students-month-controls').style.display='inline-flex'; document.getElementById('students-period-label').innerText='Отчет (за выбранный месяц)'; loadStudents(); });
+  document.getElementById('students-tab-current')?.addEventListener('click',()=>{ studentsMode='current'; document.getElementById('students-tab-current').classList.add('active'); document.getElementById('students-tab-month').classList.remove('active'); document.getElementById('students-month-controls').style.display='none'; document.getElementById('students-period-label').innerText='📊 Отчет (текущий)'; loadStudents(); });
+  document.getElementById('students-tab-month')?.addEventListener('click',()=>{ studentsMode='month'; document.getElementById('students-tab-month').classList.add('active'); document.getElementById('students-tab-current').classList.remove('active'); document.getElementById('students-month-controls').style.display='flex'; document.getElementById('students-period-label').innerText='📅 Отчет (месяц)'; loadStudents(); });
 
-  // Сотрудники
-  function openStaff(){ showOnly('staff-section'); document.getElementById('staff-branch-label').innerText=currentBranch; loadStaff(); }
   function closeStaff(){ showOnly('dashboard-section'); }
   function staffSetMonth(){ const m=document.getElementById('staff-month-select').value; fetch(`/staff-set-month?value=${encodeURIComponent(m)}&branch=${encodeURIComponent(currentBranch)}`).then(()=>loadStaff()); }
   function loadStaff(){ fetch(`/staff?branch=${encodeURIComponent(currentBranch)}&mode=${encodeURIComponent(staffMode)}`).then(r=>r.json()).then(d=>{ const rows=d?.rows||[]; document.getElementById('staff-table').innerHTML=rows.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join(''); }); }
-  document.getElementById('staff-tab-current')?.addEventListener('click',()=>{ staffMode='current'; document.getElementById('staff-tab-current').classList.add('active'); document.getElementById('staff-tab-month').classList.remove('active'); document.getElementById('staff-month-controls').style.display='none'; document.getElementById('staff-period-label').innerText='Отчет (текущий)'; loadStaff(); });
-  document.getElementById('staff-tab-month')?.addEventListener('click',()=>{ staffMode='month'; document.getElementById('staff-tab-current').classList.remove('active'); document.getElementById('staff-tab-month').classList.add('active'); document.getElementById('staff-month-controls').style.display='inline-flex'; document.getElementById('staff-period-label').innerText='Отчет (за выбранный месяц)'; loadStaff(); });
+  document.getElementById('staff-tab-current')?.addEventListener('click',()=>{ staffMode='current'; document.getElementById('staff-tab-current').classList.add('active'); document.getElementById('staff-tab-month').classList.remove('active'); document.getElementById('staff-month-controls').style.display='none'; document.getElementById('staff-period-label').innerText='📊 Отчет (текущий)'; loadStaff(); });
+  document.getElementById('staff-tab-month')?.addEventListener('click',()=>{ staffMode='month'; document.getElementById('staff-tab-month').classList.add('active'); document.getElementById('staff-tab-current').classList.remove('active'); document.getElementById('staff-month-controls').style.display='flex'; document.getElementById('staff-period-label').innerText='📅 Отчет (месяц)'; loadStaff(); });
 
-  // Платёжный календарь
-  function openPK(){ showOnly('pk-section'); loadPK(); }
   function closePK(){ showOnly('dashboard-section'); }
   function loadPK(){
-    document.getElementById('pk-branch-label').innerText=currentBranch;
-    fetch(`/pk?branch=${encodeURIComponent(currentBranch)}`)
-      .then(async r=>{ if(!r.ok){ const t=await r.json().catch(()=>({error:'Ошибка'})); throw new Error(t.error||'Ошибка'); } return r.json(); })
-      .then(d=>{
-        const header=d?.header||[]; const table=d?.table||[];
-        document.getElementById('pk-header').innerHTML = header.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join('');
-        let html=''; for(let i=0;i<table.length;){
-          const r1=table[i]||[]; const date=(r1[0]||'').trim(); const incomeRaw=r1[1]||''; const balRaw1=r1[2]||'';
-          let income=parseNumber(incomeRaw), expense=0; let balance=Number.isFinite(parseNumber(balRaw1))?parseNumber(balRaw1):null;
-          const r2=table[i+1]||[]; const same=!r2[0] || (r2[0]+'').trim()==='';
-          if(same){ const expRaw=r2[1]||''; const balRaw2=r2[2]||''; const ev=parseNumber(expRaw); if(Number.isFinite(ev)) expense=ev; const b2=parseNumber(balRaw2); if(Number.isFinite(b2)&&(balance===null||b2!==0)) balance=b2; i+=2; }
-          else { i+=1; }
-          if(balance===null) balance=0; const balCls=balance<0?'pk-bad':'';
-          html+=`<tr><td>${date}</td><td><div class="pk-inout"><div class="pk-income">${Number.isFinite(income)?fmt2(income):(incomeRaw||'')}</div><div class="pk-expense">${Number.isFinite(expense)?fmt2(expense):'0,00'}</div></div></td><td class="${balCls}" style="text-align:right">${fmt2(balance)}</td></tr>`;
+    fetch(`/pk?branch=${encodeURIComponent(currentBranch)}`).then(r=>r.json()).then(d=>{
+      const hdr=d.header||[]; const tbl=d.table||[];
+      document.getElementById('pk-header').innerHTML=hdr.map(r=>`<tr><td>${r[0]??''}</td><td>${r[1]??''}</td></tr>`).join('');
+      document.getElementById('pk-table').innerHTML=tbl.map(r=>{
+        const date=r[0]??'', inout=r[1]??'', bal=r[2]??'';
+        let balClass='', balVal=bal; const numBal=parseNumber(bal);
+        if(Number.isFinite(numBal)){ balClass=numBal<0?'pk-bad pk-neg':(numBal>=0?'pk-pos':''); balVal=fmt(numBal); }
+        let inoutHtml=''; if(inout){
+          const parts=inout.split('\n'); if(parts.length===2){
+            inoutHtml=`<div class="pk-inout"><div class="pk-income">↑ ${parts[0]}</div><div class="pk-expense">↓ ${parts[1]}</div></div>`;
+          }else inoutHtml=inout;
         }
-        document.getElementById('pk-table').innerHTML=html;
-      })
-      .catch(e=>alert(e.message));
-  }
-
-  // Отчёты
-  function openReports(){ showOnly('reports-section'); loadReports(); }
-  function closeReports(){ showOnly('dashboard-section'); }
-  function renderReports(list){
-    const box=document.getElementById('reports-list');
-    if(!Array.isArray(list)||list.length===0){ box.innerHTML=''; return; }
-    box.innerHTML=list.map(m=>`<div class="dash-block"><div style="font-weight:800; margin-bottom:8px;">${m.title}</div>${m.files.map(f=>`<div class="report-file"><a href="${f.url}" target="_blank" rel="noopener">${f.name}</a></div>`).join('')}</div>`).join('');
-  }
-  function loadReports(){ fetch('/reports').then(r=>r.json()).then(d=>renderReports(d?.months||[])); }
-
-  // Инициализация
-  document.addEventListener('DOMContentLoaded', ()=>{
-    fillMonthSelect(document.getElementById('month-select'));
-    fillMonthSelect(document.getElementById('students-month-select'));
-    fillMonthSelect(document.getElementById('staff-month-select'));
-
-    document.querySelectorAll('#dds-section .tab').forEach(tab=>{
-      tab.addEventListener('click',()=>{ const mode=tab.dataset.mode; currentMode=mode; activateDdsTab(mode); loadSummary(mode); updatePeriodLabel(mode); });
+        return `<tr><td>${date}</td><td>${inoutHtml}</td><td class="${balClass}">${balVal}</td></tr>`;
+      }).join('');
     });
+  }
 
-    document.getElementById('bd-modal').addEventListener('click',e=>{ if(e.target.id==='bd-modal') bdModal.classList.remove('show'); });
+  function closeReports(){ showOnly('dashboard-section'); }
+  function loadReports(){
+    fetch('/reports').then(r=>r.json()).then(d=>{
+      const months=d.months||[];
+      const html=months.map(m=>{
+        const files=m.files||[];
+        const filesHtml=files.map(f=>`<div class="report-file"><a href="${f.url}" target="_blank">📄 ${f.name}</a></div>`).join('');
+        return `<div style="margin-bottom:20px;"><h4 style="margin:0 0 10px; font-size:16px;">📁 ${m.title}</h4>${filesHtml}</div>`;
+      }).join('');
+      document.getElementById('reports-list').innerHTML=html||'<p style="color:var(--tg-theme-hint-color);">Нет доступных отчётов</p>';
+    });
+  }
 
-    // старт: главная
-    showOnly('dashboard-section');
-    loadSvod();
-
-    setInterval(()=>{
-      if(isVisible('dashboard-section')) loadSvod();
-      if(isVisible('dds-section')) loadSummary(currentMode);
-      if(isVisible('students-section')) loadStudents();
-      if(isVisible('staff-section')) loadStaff();
-      if(isVisible('pk-section')) loadPK();
-      if(isVisible('reports-section')) loadReports();
-    }, 30000);
+  document.getElementById('upload-form').addEventListener('submit',e=>{
+    e.preventDefault(); const fd=new FormData(); const ym=document.getElementById('upload-ym').value; const file=document.getElementById('upload-file').files[0];
+    if(!ym||!file){ alert('Выберите месяц и файл'); return; }
+    fd.append('ym',ym); fd.append('file',file);
+    fetch('/reports/upload',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+      document.getElementById('upload-msg').textContent=d.error||'✓ Загружено успешно'; loadReports();
+      setTimeout(()=>document.getElementById('upload-msg').textContent='',3000);
+    });
   });
+
+  document.getElementById('delete-btn').addEventListener('click',()=>{
+    const ym=prompt('Введите период (YYYY-MM):'); const name=prompt('Введите имя файла:');
+    if(!ym||!name) return;
+    fetch('/reports/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ym,name})}).then(r=>r.json()).then(d=>{
+      alert(d.error||'Удалено'); loadReports();
+    });
+  });
+
+  document.querySelectorAll('#dds-section .tab').forEach(tab=>tab.addEventListener('click',()=>{ const mode=tab.dataset.mode; currentMode=mode; activateDdsTab(mode); loadSummary(mode); updatePeriodLabel(mode); }));
+
+  fillMonthSelect(document.getElementById('month-select'));
+  fillMonthSelect(document.getElementById('students-month-select'));
+  fillMonthSelect(document.getElementById('staff-month-select'));
+
+  loadSvod();
 </script>
 </body>
 </html>
