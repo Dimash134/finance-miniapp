@@ -25,7 +25,7 @@
 
   .container{padding:16px; max-width:900px; margin:0 auto}
 
-  /* Главная — три блока вертикально */
+  /* Главная — три блока вертикально без заголовков */
   .dash-block{background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:12px;}
   .dash-block table{width:100%; border-collapse:collapse}
   .dash-block td{padding:8px 6px; border-bottom:1px solid #eee; font-size:15px}
@@ -110,7 +110,7 @@
   <div class="overlay" id="overlay"></div>
   <div class="side-menu" id="side-menu">
     <h3>Разделы</h3>
-    <!-- Убрали 'Главная' из меню -->
+    <!-- Без "Главная" -->
     <button data-section="dds">ДДС</button>
     <button data-section="students">Ученики</button>
     <button data-section="staff">Сотрудники</button>
@@ -119,7 +119,7 @@
   </div>
 
   <div class="container">
-    <!-- ГЛАВНАЯ: три вертикальных блока без заголовков -->
+    <!-- Главная (Свод) -->
     <div id="dashboard-section">
       <div class="dash-block"><table id="svod-p1"></table></div>
       <div class="dash-block"><table id="svod-p2"></table></div>
@@ -143,7 +143,6 @@
       </div>
       <div class="period-label" id="period-label">Отчёт на сегодня</div>
 
-      <!-- KPI — старый вид -->
       <div class="kpis">
         <div class="kpi income"><div class="label">Доход</div><div class="value" id="kpi-income">0 ₸</div></div>
         <div class="kpi expense"><div class="label">Расход</div><div class="value" id="kpi-expense">0 ₸</div></div>
@@ -156,7 +155,7 @@
       </div>
     </div>
 
-    <!-- Остальные разделы без изменений -->
+    <!-- Ученики -->
     <div id="students-section" style="display:none; padding-top:10px;">
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
         <button onclick="closeStudents()">← Назад</button>
@@ -174,6 +173,7 @@
       <table id="students-table"></table>
     </div>
 
+    <!-- Сотрудники -->
     <div id="staff-section" style="display:none; padding-top:10px;">
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
         <button onclick="closeStaff()">← Назад</button>
@@ -191,6 +191,7 @@
       <table id="staff-table"></table>
     </div>
 
+    <!-- Платёжный календарь -->
     <div id="pk-section" style="display:none; padding-top:10px;">
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
         <button onclick="closePK()">← Назад</button>
@@ -200,6 +201,7 @@
       <table id="pk-table"></table>
     </div>
 
+    <!-- Отчёт (PDF архив) -->
     <div id="reports-section" style="display:none; padding-top:10px;">
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
         <button onclick="closeReports()">← Назад</button>
@@ -258,7 +260,6 @@
   });
 
   function showOnly(id){
-    // главная всегда доступна, но не в меню
     ['dashboard-section','dds-section','students-section','staff-section','pk-section','reports-section']
       .forEach(x=>document.getElementById(x).style.display = (x===id)?'block':'none');
   }
@@ -272,7 +273,7 @@
     if(isVisible('students-section')){ document.getElementById('students-branch-label').innerText=currentBranch; loadStudents(); }
     if(isVisible('staff-section')){ document.getElementById('staff-branch-label').innerText=currentBranch; loadStaff(); }
     if(isVisible('pk-section')){ document.getElementById('pk-branch-label').innerText=currentBranch; loadPK(); }
-    if(isVisible('reports-section')) loadReports();
+    if(isVisible('reports-section'))  loadReports();
   });
 
   // ===== Главная (Свод)
@@ -369,6 +370,56 @@
     bdList.querySelectorAll('.row').forEach(r=>r.addEventListener('click',()=>r.classList.toggle('open')));
   }
 
+  // Ученики
+  function openStudents(){ showOnly('students-section'); document.getElementById('students-branch-label').innerText=currentBranch; loadStudents(); }
+  function closeStudents(){ showOnly('dashboard-section'); }
+  function studentsSetMonth(){ const m=document.getElementById('students-month-select').value; fetch(`/students-set-month?value=${encodeURIComponent(m)}&branch=${encodeURIComponent(currentBranch)}`).then(()=>loadStudents()); }
+  function loadStudents(){ fetch(`/students?branch=${encodeURIComponent(currentBranch)}&mode=${encodeURIComponent(studentsMode)}`).then(r=>r.json()).then(d=>{ const rows=d?.rows||[]; document.getElementById('students-table').innerHTML=rows.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join(''); }); }
+  document.getElementById('students-tab-current')?.addEventListener('click',()=>{ studentsMode='current'; document.getElementById('students-tab-current').classList.add('active'); document.getElementById('students-tab-month').classList.remove('active'); document.getElementById('students-month-controls').style.display='none'; document.getElementById('students-period-label').innerText='Отчет (текущий)'; loadStudents(); });
+  document.getElementById('students-tab-month')?.addEventListener('click',()=>{ studentsMode='month'; document.getElementById('students-tab-current').classList.remove('active'); document.getElementById('students-tab-month').classList.add('active'); document.getElementById('students-month-controls').style.display='inline-flex'; document.getElementById('students-period-label').innerText='Отчет (за выбранный месяц)'; loadStudents(); });
+
+  // Сотрудники
+  function openStaff(){ showOnly('staff-section'); document.getElementById('staff-branch-label').innerText=currentBranch; loadStaff(); }
+  function closeStaff(){ showOnly('dashboard-section'); }
+  function staffSetMonth(){ const m=document.getElementById('staff-month-select').value; fetch(`/staff-set-month?value=${encodeURIComponent(m)}&branch=${encodeURIComponent(currentBranch)}`).then(()=>loadStaff()); }
+  function loadStaff(){ fetch(`/staff?branch=${encodeURIComponent(currentBranch)}&mode=${encodeURIComponent(staffMode)}`).then(r=>r.json()).then(d=>{ const rows=d?.rows||[]; document.getElementById('staff-table').innerHTML=rows.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join(''); }); }
+  document.getElementById('staff-tab-current')?.addEventListener('click',()=>{ staffMode='current'; document.getElementById('staff-tab-current').classList.add('active'); document.getElementById('staff-tab-month').classList.remove('active'); document.getElementById('staff-month-controls').style.display='none'; document.getElementById('staff-period-label').innerText='Отчет (текущий)'; loadStaff(); });
+  document.getElementById('staff-tab-month')?.addEventListener('click',()=>{ staffMode='month'; document.getElementById('staff-tab-current').classList.remove('active'); document.getElementById('staff-tab-month').classList.add('active'); document.getElementById('staff-month-controls').style.display='inline-flex'; document.getElementById('staff-period-label').innerText='Отчет (за выбранный месяц)'; loadStaff(); });
+
+  // Платёжный календарь
+  function openPK(){ showOnly('pk-section'); loadPK(); }
+  function closePK(){ showOnly('dashboard-section'); }
+  function loadPK(){
+    document.getElementById('pk-branch-label').innerText=currentBranch;
+    fetch(`/pk?branch=${encodeURIComponent(currentBranch)}`)
+      .then(async r=>{ if(!r.ok){ const t=await r.json().catch(()=>({error:'Ошибка'})); throw new Error(t.error||'Ошибка'); } return r.json(); })
+      .then(d=>{
+        const header=d?.header||[]; const table=d?.table||[];
+        document.getElementById('pk-header').innerHTML = header.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join('');
+        let html=''; for(let i=0;i<table.length;){
+          const r1=table[i]||[]; const date=(r1[0]||'').trim(); const incomeRaw=r1[1]||''; const balRaw1=r1[2]||'';
+          let income=parseNumber(incomeRaw), expense=0; let balance=Number.isFinite(parseNumber(balRaw1))?parseNumber(balRaw1):null;
+          const r2=table[i+1]||[]; const same=!r2[0] || (r2[0]+'').trim()==='';
+          if(same){ const expRaw=r2[1]||''; const balRaw2=r2[2]||''; const ev=parseNumber(expRaw); if(Number.isFinite(ev)) expense=ev; const b2=parseNumber(balRaw2); if(Number.isFinite(b2)&&(balance===null||b2!==0)) balance=b2; i+=2; }
+          else { i+=1; }
+          if(balance===null) balance=0; const balCls=balance<0?'pk-bad':'';
+          html+=`<tr><td>${date}</td><td><div class="pk-inout"><div class="pk-income">${Number.isFinite(income)?fmt2(income):(incomeRaw||'')}</div><div class="pk-expense">${Number.isFinite(expense)?fmt2(expense):'0,00'}</div></div></td><td class="${balCls}" style="text-align:right">${fmt2(balance)}</td></tr>`;
+        }
+        document.getElementById('pk-table').innerHTML=html;
+      })
+      .catch(e=>alert(e.message));
+  }
+
+  // Отчёты
+  function openReports(){ showOnly('reports-section'); loadReports(); }
+  function closeReports(){ showOnly('dashboard-section'); }
+  function renderReports(list){
+    const box=document.getElementById('reports-list');
+    if(!Array.isArray(list)||list.length===0){ box.innerHTML=''; return; }
+    box.innerHTML=list.map(m=>`<div class="dash-block"><div style="font-weight:800; margin-bottom:8px;">${m.title}</div>${m.files.map(f=>`<div class="report-file"><a href="${f.url}" target="_blank" rel="noopener">${f.name}</a></div>`).join('')}</div>`).join('');
+  }
+  function loadReports(){ fetch('/reports').then(r=>r.json()).then(d=>renderReports(d?.months||[])); }
+
   // Инициализация
   document.addEventListener('DOMContentLoaded', ()=>{
     fillMonthSelect(document.getElementById('month-select'));
@@ -381,7 +432,7 @@
 
     document.getElementById('bd-modal').addEventListener('click',e=>{ if(e.target.id==='bd-modal') bdModal.classList.remove('show'); });
 
-    // старт: всегда главная
+    // старт: главная
     showOnly('dashboard-section');
     loadSvod();
 
@@ -394,9 +445,6 @@
       if(isVisible('reports-section')) loadReports();
     }, 30000);
   });
-
-  // ===== Остальные функции (ученики/сотрудники/ПК/отчёты) — без изменений из прошлой версии
-  // ... Сокращено для ясности: используйте тот же код, который у вас уже стоит (он не менялся).
 </script>
 </body>
 </html>
