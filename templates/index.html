@@ -6,173 +6,95 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-:root{
-  /* Палитра и тени */
-  --bg:#0b1020;          /* тёмный фон — чище контраст на телефонах */
-  --bg-2:#0f152a;
-  --card:#121a34;
-  --line:#1f2b4a;
-  --muted:#9fb0d0;
+  :root{ --green:#4caf50; --green-2:#2e7d32; --bg:#f6f9fc; --red:#d32f2f;
+         --card:#ffffff; --muted:#777; --line:#e7e7e7; --danger-bg:#ffebee; --danger-text:#b71c1c;}
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0; font-family:Arial, sans-serif; background:var(--bg);
+       padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);}
+  .top-bar{position:sticky; top:0; z-index:100; display:flex; gap:12px; align-items:center; justify-content:space-between;
+           background:var(--green); color:#fff; padding:10px 16px;}
+  .branch-select{background:#fff; color:#111; border:0; border-radius:8px; padding:8px 10px; min-width:160px; font-size:14px;}
+  .menu-button{background:#fff; color:var(--green); border:0; border-radius:8px; padding:8px 12px; font-weight:700; cursor:pointer;}
 
-  --green:#22c55e;       /* успех */
-  --green-2:#16a34a;
-  --red:#ef4444;         /* ошибка */
-  --red-2:#dc2626;
+  .side-menu{position:fixed; top:0; right:-270px; width:270px; height:100%; background:#fff; box-shadow:-2px 0 10px rgba(0,0,0,.15);
+             padding:18px; transition:right .25s ease; z-index:1000;}
+  .side-menu.open{right:0} .side-menu h3{margin:0 0 10px}
+  .side-menu button{display:block; width:100%; margin:8px 0; padding:12px; font-size:16px; background:#f2f2f2; border:none; border-radius:10px; cursor:pointer}
+  .overlay{position:fixed; inset:0; background:rgba(0,0,0,.1); opacity:0; pointer-events:none; transition:opacity .2s; z-index:900}
+  .overlay.show{opacity:1; pointer-events:auto}
 
-  --ink:#e6eeff;         /* базовый текст */
-  --ink-soft:#c9d6f3;
+  .container{padding:16px; max-width:900px; margin:0 auto}
 
-  --ring:#3b82f6;        /* фокус */
-  --shadow: 0 8px 24px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.03) inset;
-  --shadow-soft: 0 6px 18px rgba(0,0,0,.25);
-}
+  /* Главная — три блока вертикально без заголовков */
+  .dash-block{background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:12px;}
+  .dash-block table{width:100%; border-collapse:collapse}
+  .dash-block td{padding:8px 6px; border-bottom:1px solid #eee; font-size:15px}
+  .dash-block tr:last-child td{border-bottom:none}
 
-/* База */
-*{box-sizing:border-box}
-html,body{height:100%}
-body{
-  margin:0; background:radial-gradient(1200px 600px at 10% -10%, #1c2750 0%, #0b1020 55%) fixed;
-  color:var(--ink); font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
-  padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
-}
+  /* Таблицы/контролы ДДС и прочего */
+  .tabs{display:flex; gap:8px; justify-content:center; margin:14px 0 8px; flex-wrap:wrap}
+  .tab{padding:8px 14px; background:#e0e0e0; border-radius:18px; cursor:pointer; font-weight:700}
+  .tab.active{background:var(--green); color:#fff}
+  .controls{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:8px}
+  .controls input, .controls button, .controls select{padding:10px 12px; border-radius:8px; border:1px solid #ddd; font-size:14px; background:#fff; min-height:40px;}
+  .period-label{text-align:center; font-weight:800; margin:10px 0; color:#111}
 
-/* Верхняя панель */
-.top-bar{
-  position:sticky; top:0; z-index:100;
-  display:flex; align-items:center; justify-content:space-between; gap:12px;
-  background:linear-gradient(90deg,#1c2750,#0f1b3d);
-  border-bottom:1px solid #1f2b4a; color:var(--ink);
-  padding:10px 16px; box-shadow:var(--shadow-soft);
-}
-.branch-select{
-  background:var(--card); color:var(--ink);
-  border:1px solid var(--line); border-radius:10px;
-  padding:8px 10px; min-width:160px; font-size:14px; outline:none;
-}
-.branch-select:focus{box-shadow:0 0 0 2px var(--ring); border-color:transparent}
-.menu-button{
-  background:linear-gradient(180deg,#3b82f6,#2563eb);
-  color:#fff; border:0; border-radius:12px; padding:8px 14px;
-  font-weight:700; cursor:pointer; box-shadow:var(--shadow-soft); transition:transform .08s ease;
-}
-.menu-button:active{transform:translateY(1px)}
+  /* KPI — старый дизайн */
+  .kpis{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; max-width:720px; margin:0 auto 10px}
+  .kpi{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; text-align:center}
+  .kpi .label{font-size:12px; color:var(--muted); margin-bottom:4px}
+  .kpi .value{font-size:18px; font-weight:800}
+  .kpi.income .value{color:var(--green-2)} .kpi.expense .value{color:var(--red)} .kpi.net .value{color:#0f3d62}
 
-/* Боковое меню */
-.side-menu{
-  position:fixed; top:0; right:-280px; width:280px; height:100%;
-  background:linear-gradient(180deg,#0f152a,#0b1020); border-left:1px solid var(--line);
-  box-shadow:-16px 0 40px rgba(0,0,0,.45); padding:18px; transition:right .25s ease; z-index:1000;
-}
-.side-menu.open{right:0}
-.side-menu h3{margin:0 0 8px; color:var(--ink); font-size:16px}
-.side-menu button{
-  display:block; width:100%; margin:10px 0; padding:12px; font-size:15px;
-  background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:12px; cursor:pointer;
-}
-.side-menu button:hover{border-color:#2b3b68}
-.overlay{position:fixed; inset:0; background:rgba(7,10,18,.5); opacity:0; pointer-events:none; transition:opacity .2s; z-index:900}
-.overlay.show{opacity:1; pointer-events:auto}
+  table{width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden}
+  td{padding:10px 12px; border-bottom:1px solid var(--line); font-size:15px}
+  tr:last-child td{border-bottom:none}
+  tr.positive td:nth-child(2){color:var(--green-2); font-weight:800}
+  tr.negative td:nth-child(2){color:var(--red); font-weight:800}
+  tr.total td{font-weight:900; background:#fafafa; border-top:2px solid var(--line)}
 
-/* Контейнер */
-.container{padding:16px; max-width:900px; margin:0 auto}
+  /* Платёжный календарь — карточки */
+  #pk-header{border:0; background:transparent; border-collapse:separate; border-spacing:0 8px}
+  #pk-header td{background:#fff; border:1px solid var(--line); padding:12px 14px; font-size:15px; font-weight:700;}
+  #pk-header td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
+  #pk-header td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px; text-align:right}
 
-/* Карточки (главная + отчёты) */
-.dash-block{
-  background:linear-gradient(180deg,#121a34,#0f172e);
-  border:1px solid var(--line); border-radius:16px; padding:14px; margin-bottom:12px;
-  box-shadow:var(--shadow);
-}
-.dash-block table{width:100%; border-collapse:collapse}
-.dash-block td{padding:10px 8px; border-bottom:1px dashed #233257; font-size:15px; color:var(--ink)}
-.dash-block tr:last-child td{border-bottom:none}
+  #pk-table{border:0; background:transparent; border-collapse:separate; border-spacing:0 8px;}
+  #pk-table td{background:#fff; border:1px solid var(--line); padding:12px 14px; font-size:15px;}
+  #pk-table td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
+  #pk-table td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
 
-/* Вкладки и контролы */
-.tabs{display:flex; gap:8px; justify-content:center; margin:16px 0 10px; flex-wrap:wrap}
-.tab{
-  padding:8px 14px; border-radius:999px; cursor:pointer; font-weight:700;
-  background:rgba(255,255,255,.06); color:var(--ink); border:1px solid transparent;
-}
-.tab.active{background:rgba(59,130,246,.2); border-color:#3b82f6}
-.controls{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:10px}
-.controls input, .controls button, .controls select{
-  padding:10px 12px; border-radius:10px; border:1px solid var(--line); font-size:14px;
-  background:var(--card); color:var(--ink); min-height:42px; outline:none;
-}
-.controls input:focus, .controls select:focus{box-shadow:0 0 0 2px var(--ring); border-color:transparent}
-.controls button{cursor:pointer; background:linear-gradient(180deg,#3b82f6,#2563eb); border:0; color:#fff}
+  .pk-pos{color:var(--green-2); font-weight:700}
+  .pk-neg{color:var(--red); font-weight:700}
+  .pk-bad{background:var(--danger-bg) !important; color:var(--danger-text); font-weight:800}
+  .pk-inout{display:flex; flex-direction:column; gap:6px; align-items:center; justify-content:center;}
+  .pk-inout .pk-income{ color:var(--green-2); font-weight:800; line-height:1; }
+  .pk-inout .pk-expense{ color:var(--red);     font-weight:800; line-height:1; }
 
-/* KPI — компактные карточки */
-.kpis{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; max-width:720px; margin:0 auto 12px}
-.kpi{
-  background:linear-gradient(180deg,#121a34,#0f172e);
-  border:1px solid var(--line); border-radius:16px; padding:14px; text-align:center; box-shadow:var(--shadow);
-}
-.kpi .label{font-size:12px; color:var(--ink-soft); margin-bottom:6px; letter-spacing:.2px}
-.kpi .value{font-size:20px; font-weight:800}
-.kpi.income .value{color:var(--green)}
-.kpi.expense .value{color:var(--red)}
-.kpi.net .value{color:#60a5fa}
+  /* Отчёты (PDF) */
+  .report-file{display:flex; gap:10px; align-items:center; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#fafafa; margin:6px 0;}
+  .report-file a{flex:1; text-decoration:none; color:#0f3d62;}
 
-/* Таблицы данных */
-table{width:100%; border-collapse:separate; border-spacing:0; background:var(--card);
-       border:1px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:var(--shadow)}
-td{padding:12px 14px; border-bottom:1px solid #1c294b; font-size:15px; color:var(--ink)}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:#0f172e}
-tr.positive td:nth-child(2){color:var(--green)}
-tr.negative td:nth-child(2){color:var(--red)}
-tr.total td{font-weight:900; background:#0f172e; border-top:2px solid #24335a}
+  /* Модалка «Расшифровка» */
+  .modal{position:fixed; inset:0; background:rgba(0,0,0,.2); display:none; align-items:center; justify-content:center; z-index:1200}
+  .modal.show{display:flex}
+  .modal-body{width:min(96vw,640px); max-height:calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+              overflow:auto; background:#fff; border-radius:12px; padding:12px}
+  .bd-head{display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap}
+  .bd-head input{padding:8px; border:1px solid #ddd; border-radius:8px; flex:1 1 220px; min-width:0}
+  .row{border-bottom:1px solid #eee; padding:10px 6px; cursor:pointer}
+  .top{display:flex; justify-content:space-between; gap:8px; font-weight:600}
+  .bottom{margin-top:6px; font-size:14px; color:#444; display:none}
+  .row.open .bottom{display:block}
+  .amount{white-space:nowrap}
+  .amt-pos{color:var(--green-2); font-weight:800} .amt-neg{color:var(--red); font-weight:800}
 
-/* Платёжный календарь */
-#pk-header{border:0; background:transparent; border-collapse:separate; border-spacing:0 10px}
-#pk-header td{background:var(--card); border:1px solid var(--line); padding:12px 14px; font-size:15px; font-weight:700; border-radius:12px; box-shadow:var(--shadow-soft)}
-#pk-table{border:0; background:transparent; border-collapse:separate; border-spacing:0 10px;}
-#pk-table td{background:var(--card); border:1px solid var(--line); padding:12px 14px; font-size:15px; border-radius:12px; box-shadow:var(--shadow-soft)}
-.pk-pos{color:var(--green); font-weight:700}
-.pk-neg{color:var(--red); font-weight:700}
-.pk-bad{background:rgba(239,68,68,.12) !important; color:#fecaca; font-weight:800; border-color:#7f1d1d !important}
-.pk-inout{display:flex; flex-direction:column; gap:6px; align-items:center; justify-content:center;}
-.pk-inout .pk-income{ color:var(--green); font-weight:800; line-height:1; }
-.pk-inout .pk-expense{ color:var(--red);   font-weight:800; line-height:1; }
-
-/* Отчёты */
-.report-file{
-  display:flex; align-items:center; gap:10px;
-  padding:10px 12px; border:1px solid var(--line); border-radius:10px;
-  background:#0f172e; color:var(--ink); margin:6px 0;
-}
-.report-file a{flex:1; text-decoration:none; color:#93c5fd}
-.rep-chk{ display:none; }
-.rep-chk.show{ display:inline-block; }
-
-/* Модалка «Расшифровка» */
-.modal{position:fixed; inset:0; background:rgba(4,6,12,.65); display:none; align-items:center; justify-content:center; z-index:1200}
-.modal.show{display:flex}
-.modal-body{
-  width:min(96vw,720px);
-  max-height:calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-  overflow:auto; background:linear-gradient(180deg,#111935,#0c132a);
-  border:1px solid #233257; border-radius:16px; padding:12px; box-shadow:var(--shadow);
-}
-.bd-head{display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap}
-.bd-head input{padding:10px 12px; border:1px solid var(--line); border-radius:10px; flex:1 1 240px; min-width:0; background:#0f172e; color:var(--ink)}
-.bd-head input:focus{box-shadow:0 0 0 2px var(--ring); border-color:transparent}
-.row{border-bottom:1px solid #1c294b; padding:12px 6px; cursor:pointer}
-.top{display:flex; justify-content:space-between; gap:8px; font-weight:600}
-.bottom{margin-top:6px; font-size:14px; color:var(--ink-soft); display:none}
-.row.open .bottom{display:block}
-.amount{white-space:nowrap}
-.amt-pos{color:var(--green); font-weight:800}
-.amt-neg{color:var(--red);   font-weight:800}
-
-/* Адаптив */
-@media (max-width:560px){
-  .container{padding:12px}
-  .kpis{grid-template-columns:1fr; gap:10px}
-  .kpi .value{font-size:18px}
-  td:first-child{max-width:70vw; word-break:break-word}
-}
+  @media (max-width:560px){
+    .container{padding:12px}
+    .kpis{grid-template-columns:1fr; gap:8px}
+    .kpi .value{font-size:16px}
+    td:first-child{max-width:70vw; word-break:break-word}
+  }
 </style>
 </head>
 <body>
@@ -526,4 +448,3 @@ tr.total td{font-weight:900; background:#0f172e; border-top:2px solid #24335a}
 </script>
 </body>
 </html>
-
