@@ -1,106 +1,165 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Финансы — MiniApp</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <style>
-    :root {
-      --tg-theme-bg-color:#ffffff;
-      --tg-theme-text-color:#000000;
-      --tg-theme-hint-color:#777;
-      --tg-theme-link-color:#2481cc;
-      --tg-theme-button-color:#2481cc;
-      --tg-theme-button-text-color:#ffffff;
-      --tg-theme-secondary-bg-color:#f6f7fb;
+<meta charset="UTF-8" />
+<title>Финансы — MiniApp</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --tg-theme-bg-color:#ffffff;
+    --tg-theme-text-color:#0f172a;
+    --tg-theme-hint-color:#6b7280;
+    --tg-theme-link-color:#2563eb;
+    --tg-theme-button-color:#2563eb;
+    --tg-theme-button-text-color:#ffffff;
+    --tg-theme-secondary-bg-color:#f4f4f5;
 
-      --primary:#3b82f6;
-      --primary-dark:#2563eb;
-      --success:#10b981;
-      --danger:#ef4444;
-      --bg-gradient:linear-gradient(135deg,#667eea 0%, #764ba2 100%);
-      --radius:16px;
-      --shadow:0 4px 10px rgba(0,0,0,.06);
-      --shadow2:0 10px 24px rgba(0,0,0,.10);
-    }
+    --primary:#3b82f6;
+    --primary-dark:#2563eb;
+    --success:#10b981;
+    --danger:#ef4444;
+    --bg-gradient:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+    --card-shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);
+    --card-shadow-hover:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -2px rgba(0,0,0,.05);
+    --radius:16px;
+    --tr:all .25s cubic-bezier(.4,0,.2,1);
+  }
+  [data-theme="dark"]{
+    --tg-theme-bg-color:#18181b;
+    --tg-theme-text-color:#f8fafc;
+    --tg-theme-hint-color:#9ca3af;
+    --tg-theme-secondary-bg-color:#27272a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow-x:hidden}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+    background:var(--tg-theme-bg-color); color:var(--tg-theme-text-color);
+    padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
+    line-height:1.6; transition:var(--tr);
+  }
 
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%}
-    body{
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: var(--tg-theme-bg-color);
-      color: var(--tg-theme-text-color);
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
-    }
+  .top-bar{position:sticky;top:0;z-index:100;background:var(--bg-gradient);
+    padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+    box-shadow:0 4px 12px rgba(0,0,0,.1)}
+  .branch-select,.menu-button{
+    background:rgba(255,255,255,.95); color:#1f2937;border:0;border-radius:12px;
+    padding:10px 14px; font-weight:700; font-size:14px; cursor:pointer; transition:var(--tr);
+    box-shadow:0 2px 8px rgba(0,0,0,.1)
+  }
+  .menu-button{color:#667eea}
+  .branch-select:hover,.menu-button:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.15)}
 
-    .top-bar{
-      position:sticky; top:0; z-index:50;
-      background: var(--bg-gradient);
-      padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px;
-      box-shadow: 0 6px 16px rgba(0,0,0,.12);
-    }
-    .branch-select{
-      background:#fff; color:#1f2937; border:0; border-radius:12px; padding:10px 14px; font-weight:700; min-width:160px;
-      box-shadow: 0 2px 8px rgba(0,0,0,.1);
-    }
-    .menu-button{
-      background:#fff; color:#667eea; border:0; border-radius:12px; padding:10px 16px; font-weight:800; cursor:pointer;
-      box-shadow: 0 2px 8px rgba(0,0,0,.1);
-    }
+  .side-menu{position:fixed;top:0;right:-300px;width:300px;height:100%;background:var(--tg-theme-bg-color);
+    box-shadow:-4px 0 20px rgba(0,0,0,.15);padding:24px 20px;transition:right .3s cubic-bezier(.4,0,.2,1);
+    z-index:1000;overflow-y:auto}
+  .side-menu.open{right:0}
+  .side-menu h3{margin:0 0 16px;font-size:22px;font-weight:800;background:var(--bg-gradient);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .side-menu button{display:flex;align-items:center;gap:10px;width:100%;margin:10px 0;padding:14px 16px;
+    font-weight:700;border:0;border-radius:12px;background:var(--tg-theme-secondary-bg-color);
+    color:var(--tg-theme-text-color);cursor:pointer;transition:var(--tr)}
+  .side-menu button:hover{transform:translateX(-4px);background:var(--bg-gradient);color:#fff;box-shadow:var(--card-shadow-hover)}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .3s;z-index:900;backdrop-filter:blur(4px)}
+  .overlay.show{opacity:1;pointer-events:auto}
 
-    .overlay{position:fixed; inset:0; background:rgba(0,0,0,.5); opacity:0; pointer-events:none; transition:.2s; z-index:40}
-    .overlay.show{opacity:1; pointer-events:auto}
-    .side-menu{position:fixed; top:0; right:-300px; width:300px; height:100%; z-index:45; background:var(--tg-theme-bg-color);
-      padding:22px 18px; box-shadow:-6px 0 24px rgba(0,0,0,.18); transition:right .25s}
-    .side-menu.open{right:0}
-    .side-menu h3{margin:0 0 12px; background:var(--bg-gradient); -webkit-background-clip:text; -webkit-text-fill-color:transparent}
-    .side-menu button{display:block; width:100%; margin:8px 0; padding:14px; border:0; border-radius:12px; background:var(--tg-theme-secondary-bg-color); cursor:pointer; font-weight:700}
+  .container{padding:20px;max-width:980px;margin:0 auto;animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
-    .container{max-width:980px; margin:0 auto; padding:18px}
+  .dash-title{font-weight:900;font-size:20px;margin:4px 0 12px;background:var(--bg-gradient);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .dash-block{background:var(--tg-theme-secondary-bg-color);border-radius:var(--radius);padding:18px;margin-bottom:14px;
+    box-shadow:var(--card-shadow);transition:var(--tr);border:1px solid rgba(0,0,0,.05)}
+  .dash-block:hover{transform:translateY(-2px);box-shadow:var(--card-shadow-hover)}
+  .dash-block table{width:100%;border-collapse:collapse}
+  .dash-block td{padding:12px 8px;border-bottom:1px solid rgba(0,0,0,.06);font-size:15px}
+  .dash-block tr:last-child td{border-bottom:none}
+  .dash-block td:first-child{color:var(--tg-theme-hint-color);font-weight:500}
+  .dash-block td:last-child{text-align:right;font-weight:800}
 
-    .dash-title{font-size:22px; font-weight:900; margin:6px 0 14px; background:var(--bg-gradient); -webkit-background-clip:text; -webkit-text-fill-color:transparent}
+  .tabs{display:flex;gap:8px;justify-content:center;margin:16px 0;flex-wrap:wrap;padding:8px;background:var(--tg-theme-secondary-bg-color);
+    border-radius:14px;box-shadow:inset 0 2px 4px rgba(0,0,0,.05)}
+  .tab{padding:10px 16px;background:transparent;border:0;border-radius:10px;font-weight:800;color:var(--tg-theme-hint-color);cursor:pointer;transition:var(--tr)}
+  .tab:hover{background:rgba(59,130,246,.1);color:var(--primary)}
+  .tab.active{background:var(--bg-gradient);color:#fff;box-shadow:0 4px 8px rgba(102,126,234,.3)}
+  .controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:12px}
+  .controls input,.controls select,.controls button{padding:10px 12px;border-radius:10px;border:2px solid rgba(0,0,0,.08);
+    background:var(--tg-theme-secondary-bg-color);color:var(--tg-theme-text-color);font-weight:700}
+  .controls button{background:var(--primary);color:#fff;border:0;cursor:pointer}
+  .controls button:hover{background:var(--primary-dark);transform:translateY(-2px);box-shadow:var(--card-shadow-hover)}
+  .btn-back{background:var(--tg-theme-secondary-bg-color);border:0;border-radius:10px;padding:8px 12px;font-weight:700;cursor:pointer}
+  .btn-back:hover{background:var(--primary);color:#fff}
 
-    .dash-block{background:var(--tg-theme-secondary-bg-color); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:14px}
-    .dash-block table{width:100%; border-collapse:collapse}
-    .dash-block td{padding:12px 10px; border-bottom:1px solid rgba(0,0,0,.06)}
-    .dash-block tr:last-child td{border-bottom:0}
-    .dash-block td:first-child{color:var(--tg-theme-hint-color)}
-    .dash-block td:last-child{text-align:right; font-weight:800}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin:14px 0}
+  .kpi{background:var(--tg-theme-secondary-bg-color);border-radius:var(--radius);padding:18px;text-align:center;
+    box-shadow:var(--card-shadow);position:relative;overflow:hidden;transition:var(--tr)}
+  .kpi::before{content:'';position:absolute;left:0;right:0;top:0;height:4px;background:var(--bg-gradient);transform:scaleX(0);transition:transform .25s}
+  .kpi:hover{transform:translateY(-3px);box-shadow:var(--card-shadow-hover)}
+  .kpi:hover::before{transform:scaleX(1)}
+  .kpi .label{font-size:12px;color:var(--tg-theme-hint-color);text-transform:uppercase;font-weight:900;letter-spacing:.4px;margin-bottom:6px}
+  .kpi .value{font-size:24px;font-weight:900}
+  .kpi.income .value{color:var(--success)}
+  .kpi.expense .value{color:var(--danger)}
+  .kpi.net .value{background:var(--bg-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 
-    .tabs{display:flex; gap:8px; justify-content:center; margin:16px 0; background:var(--tg-theme-secondary-bg-color); padding:8px; border-radius:12px}
-    .tab{border:0; padding:8px 14px; border-radius:10px; background:transparent; cursor:pointer; font-weight:800; color:#6b7280}
-    .tab.active{background:var(--bg-gradient); color:#fff; box-shadow:var(--shadow)}
+  table{width:100%;border-collapse:separate;border-spacing:0;background:var(--tg-theme-secondary-bg-color);
+    border-radius:var(--radius);overflow:hidden;box-shadow:var(--card-shadow)}
+  td{padding:14px 16px;border-bottom:1px solid rgba(0,0,0,.05);font-size:15px}
+  tr:last-child td{border-bottom:none}
+  tr.positive td:nth-child(2){color:var(--success);font-weight:800}
+  tr.negative td:nth-child(2){color:var(--danger);font-weight:800}
+  tr.total{background:rgba(102,126,234,.08)}
+  tr.total td{font-weight:900;border-top:2px solid rgba(102,126,234,.25)}
 
-    .controls{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:8px}
-    .controls input, .controls select, .controls button{padding:10px 12px; border-radius:10px; border:2px solid rgba(0,0,0,.08); background:#fff; font-weight:700}
-    .controls button{background:var(--primary); color:#fff; border:0}
+  #pk-header{border:0;background:transparent;border-collapse:separate;border-spacing:0 10px;box-shadow:none}
+  #pk-header td{background:var(--tg-theme-secondary-bg-color);padding:14px 16px;font-weight:800;box-shadow:var(--card-shadow)}
+  #pk-header td:first-child{border-radius:12px 0 0 12px}
+  #pk-header td:last-child{border-radius:0 12px 12px 0;text-align:right}
+  #pk-table{border:0;background:transparent;border-collapse:separate;border-spacing:0 8px;box-shadow:none}
+  #pk-table td{background:var(--tg-theme-secondary-bg-color);padding:12px 14px;box-shadow:var(--card-shadow)}
+  #pk-table td:first-child{border-radius:12px 0 0 12px}
+  #pk-table td:last-child{border-radius:0 12px 12px 0}
+  .pk-pos{color:var(--success);font-weight:800}
+  .pk-neg{color:var(--danger);font-weight:800}
+  .pk-bad{background:rgba(239,68,68,.12)!important;color:var(--danger);font-weight:900}
+  .pk-inout{display:flex;flex-direction:column;gap:6px;align-items:center}
+  .pk-inout .pk-income{color:var(--success);font-weight:800}
+  .pk-inout .pk-expense{color:var(--danger);font-weight:800}
 
-    .period-label{text-align:center; font-weight:800; margin:10px 0}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:1200;backdrop-filter:blur(8px);padding:20px}
+  .modal.show{display:flex;animation:fade .3s ease}
+  .modal-body{width:min(96vw,680px);max-height:calc(100vh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow:auto;
+    background:var(--tg-theme-bg-color);border-radius:20px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .bd-head{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  .bd-head input{flex:1 1 220px;padding:10px 12px;border-radius:12px;border:2px solid rgba(0,0,0,.08);
+    background:var(--tg-theme-secondary-bg-color);color:var(--tg-theme-text-color);font-weight:700}
+  .row{border-bottom:1px solid rgba(0,0,0,.06);padding:14px 8px;cursor:pointer;border-radius:8px;transition:var(--tr)}
+  .row:hover{background:var(--tg-theme-secondary-bg-color)}
+  .top{display:flex;justify-content:space-between;gap:12px;font-weight:800}
+  .bottom{display:none;margin-top:10px;padding:10px;border-radius:8px;background:var(--tg-theme-secondary-bg-color);color:var(--tg-theme-hint-color)}
+  .row.open .bottom{display:block}
+  .amt-pos{color:var(--success);font-weight:900}
+  .amt-neg{color:var(--danger);font-weight:900}
 
-    .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:12px 0}
-    .kpi{background:var(--tg-theme-secondary-bg-color); border-radius:var(--radius); padding:16px; text-align:center; box-shadow:var(--shadow)}
-    .kpi .label{font-size:12px; color:#6b7280; margin-bottom:6px}
-    .kpi .value{font-size:22px; font-weight:900}
-    .kpi.income .value{color:#16a34a}
-    .kpi.expense .value{color:#dc2626}
-    .kpi.net .value{background:var(--bg-gradient); -webkit-background-clip:text; -webkit-text-fill-color:transparent}
+  /* KPI button on dashboard */
+  .svod-kpi-btn{
+    display:inline-flex; align-items:center; gap:10px;
+    background:var(--bg-gradient); color:#fff; font-weight:900;
+    border:0; border-radius:14px; padding:12px 16px; box-shadow:var(--card-shadow);
+    cursor:pointer; transition:var(--tr); margin-bottom:8px;
+  }
+  .svod-kpi-btn:hover{transform:translateY(-2px); box-shadow:var(--card-shadow-hover)}
+  .svod-kpi-value{font-size:18px}
 
-    table{width:100%; border-collapse:separate; border-spacing:0; background:#fff; border-radius:12px; overflow:hidden; box-shadow:var(--shadow)}
-    td{padding:12px 14px; border-bottom:1px solid rgba(0,0,0,.06)}
-    tr:last-child td{border-bottom:none}
-    tr.positive td:nth-child(2){color:#16a34a; font-weight:900}
-    tr.negative td:nth-child(2){color:#dc2626; font-weight:900}
-    tr.total td{font-weight:900; background:#f8fafc}
-
-    .btn-back{background:#fff; border:0; border-radius:10px; padding:8px 12px; font-weight:800; box-shadow:var(--shadow); cursor:pointer}
-
-    @media (max-width:560px){
-      .container{padding:12px}
-      td:first-child{max-width:66vw; word-break:break-word}
-    }
-  </style>
+  @media (max-width:560px){
+    .container{padding:16px}
+    .kpis{grid-template-columns:1fr}
+    .kpi .value{font-size:22px}
+    td:first-child{max-width:65vw;word-break:break-word}
+    .top-bar{padding:12px 16px}
+  }
+</style>
 </head>
 <body>
   <div class="top-bar">
@@ -115,54 +174,59 @@
   <div class="overlay" id="overlay"></div>
   <div class="side-menu" id="side-menu">
     <h3>Разделы</h3>
-    <button data-section="dashboard">Главная</button>
-    <button data-section="dds">ДДС</button>
-    <button data-section="students">Ученики</button>
-    <button data-section="staff">Сотрудники</button>
-    <button data-section="calendar">Платежный календарь</button>
-    <button data-section="report">Отчет</button>
+    <button data-section="dds">💰 ДДС</button>
+    <button data-section="students">👨‍🎓 Ученики</button>
+    <button data-section="staff">👥 Сотрудники</button>
+    <button data-section="calendar">📅 Платежный календарь</button>
+    <button data-section="report">📄 Отчет</button>
   </div>
 
   <div class="container">
     <!-- Главная -->
     <div id="dashboard-section">
+      <!-- NEW: кнопка KPI из Свод!B6 -->
+      <button id="svod-kpi-btn" class="svod-kpi-btn" title="Открыть детализацию">
+        <span>📌 Показатель</span>
+        <span class="svod-kpi-value" id="svod-kpi-value">…</span>
+      </button>
+
       <div class="dash-title">Сводные данные</div>
-
-      <!-- КНОПКА С СУММОЙ Свод!B6 -->
-      <button id="svod-btn" class="menu-button" style="padding:12px 16px; margin-bottom:12px;">Загрузка...</button>
-
       <div class="dash-block"><table id="svod-p1"></table></div>
       <div class="dash-block"><table id="svod-p2"></table></div>
       <div class="dash-block"><table id="svod-p3"></table></div>
     </div>
 
-    <!-- Детализация Свод -->
-    <div id="svod-details-section" style="display:none;">
-      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+    <!-- NEW: Детализация Свод -->
+    <div id="svod-detail-section" style="display:none;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
         <button class="btn-back" onclick="showOnly('dashboard-section')">← Назад</button>
-        <div style="font-weight:900;">Детализация — Свод</div>
+        <div style="font-weight:800">Детализация Свод</div>
       </div>
-      <div class="dash-block"><table id="svod-detail-1"></table></div>
-      <div class="dash-block"><table id="svod-detail-2"></table></div>
-      <div class="dash-block"><table id="svod-detail-3"></table></div>
+      <div class="dash-block"><table id="svod-d1"></table></div>
+      <div class="dash-block"><table id="svod-d2"></table></div>
+      <div class="dash-block"><table id="svod-d3"></table></div>
     </div>
 
     <!-- ДДС -->
     <div id="dds-section" style="display:none;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <button class="btn-back" onclick="showOnly('dashboard-section')">← Назад</button>
+      </div>
+
       <div class="tabs">
         <div class="tab active" data-mode="текущий">Текущий</div>
         <div class="tab" data-mode="месяц">Месяц</div>
         <div class="tab" data-mode="дата">Дата</div>
       </div>
+
       <div class="controls" id="controls-date" style="display:none;">
-        <input type="date" id="date-input" />
+        <input type="date" id="date-input"/>
         <button onclick="setDate()">Установить дату</button>
       </div>
       <div class="controls" id="controls-month" style="display:none;">
         <select id="month-select"></select>
         <button onclick="setMonth()">Установить месяц</button>
       </div>
-      <div class="period-label" id="period-label">Отчёт на сегодня</div>
 
       <div class="kpis">
         <div class="kpi income"><div class="label">Доход</div><div class="value" id="kpi-income">0 ₸</div></div>
@@ -172,16 +236,18 @@
 
       <table id="summary-table"></table>
 
-      <div style="display:flex; justify-content:flex-end; margin-top:12px;">
-        <button id="btn-breakdown" class="menu-button" style="background:var(--primary); color:#fff;">Расшифровка</button>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+        <button id="btn-breakdown" class="menu-button" style="background:var(--primary);color:#fff">Расшифровка</button>
       </div>
+
+      <div class="period-label" id="period-label" style="margin-top:12px;"></div>
     </div>
 
-    <!-- Остальные секции как раньше -->
-    <div id="students-section" style="display:none; padding-top:10px;">
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-        <button onclick="closeStudents()" class="btn-back">← Назад</button>
-        <div style="font-weight:700;">Ученики — <span id="students-branch-label">Private</span></div>
+    <!-- Ученики -->
+    <div id="students-section" style="display:none;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <button class="btn-back" onclick="closeStudents()">← Назад</button>
+        <div style="font-weight:800">Ученики — <span id="students-branch-label">Private</span></div>
       </div>
       <div class="tabs">
         <button id="students-tab-current" class="tab active">Текущий</button>
@@ -191,14 +257,15 @@
         <select id="students-month-select"></select>
         <button onclick="studentsSetMonth()">Установить месяц</button>
       </div>
-      <div id="students-period-label" class="period-label">Отчет (текущий)</div>
+      <div class="period-label" id="students-period-label">Отчет (текущий)</div>
       <table id="students-table"></table>
     </div>
 
-    <div id="staff-section" style="display:none; padding-top:10px;">
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-        <button onclick="closeStaff()" class="btn-back">← Назад</button>
-        <div style="font-weight:700;">Сотрудники — <span id="staff-branch-label">Private</span></div>
+    <!-- Сотрудники -->
+    <div id="staff-section" style="display:none;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <button class="btn-back" onclick="closeStaff()">← Назад</button>
+        <div style="font-weight:800">Сотрудники — <span id="staff-branch-label">Private</span></div>
       </div>
       <div class="tabs">
         <button id="staff-tab-current" class="tab active">Текущий</button>
@@ -208,313 +275,404 @@
         <select id="staff-month-select"></select>
         <button onclick="staffSetMonth()">Установить месяц</button>
       </div>
-      <div id="staff-period-label" class="period-label">Отчет (текущий)</div>
+      <div class="period-label" id="staff-period-label">Отчет (текущий)</div>
       <table id="staff-table"></table>
     </div>
 
-    <div id="pk-section" style="display:none; padding-top:10px;">
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-        <button onclick="closePK()" class="btn-back">← Назад</button>
-        <div style="font-weight:700;">Платежный календарь — <span id="pk-branch-label">Private</span></div>
+    <!-- Платежный календарь -->
+    <div id="pk-section" style="display:none;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <button class="btn-back" onclick="closePK()">← Назад</button>
+        <div style="font-weight:800">Платежный календарь — <span id="pk-branch-label">Private</span></div>
       </div>
       <table id="pk-header" style="margin-bottom:10px;"></table>
       <table id="pk-table"></table>
     </div>
 
-    <div id="reports-section" style="display:none; padding-top:10px;">
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-        <button onclick="closeReports()" class="btn-back">← Назад</button>
-        <div style="font-weight:700;">Отчёт — общий</div>
+    <!-- Отчёты -->
+    <div id="reports-section" style="display:none;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <button class="btn-back" onclick="closeReports()">← Назад</button>
+        <div style="font-weight:800">Отчёт — общий</div>
       </div>
-      <div id="reports-list" style="display:flex; flex-direction:column; gap:12px;"></div>
+      <div id="reports-list" style="display:flex;flex-direction:column;gap:12px;"></div>
 
-      <div id="reports-upload" class="dash-block">
+      <div id="reports-upload" class="dash-block" style="margin-top:14px;">
         <h4 style="margin:0 0 8px;">Загрузить PDF</h4>
-        <form id="upload-form" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-          <input type="month" id="upload-ym" required>
-          <input type="file" id="upload-file" accept="application/pdf" required>
-          <button type="submit" class="menu-button" style="background:#16a34a; color:#fff;">Загрузить</button>
-          <button type="button" id="delete-btn" class="menu-button" style="background:#dc2626; color:#fff;">Удалить</button>
+        <form id="upload-form" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <input type="month" id="upload-ym" required style="padding:10px;border:2px solid rgba(0,0,0,.08);border-radius:10px;background:var(--tg-theme-bg-color)">
+          <input type="file" id="upload-file" accept="application/pdf" required style="padding:10px;">
+          <button type="submit" class="menu-button" style="background:var(--success);color:#fff">Загрузить</button>
+          <button type="button" id="delete-btn" class="menu-button" style="background:var(--danger);color:#fff">Удалить</button>
         </form>
-        <div id="upload-msg" style="margin-top:6px; color:#16a34a; font-weight:700;"></div>
+        <div id="upload-msg" style="margin-top:8px;color:var(--success);font-weight:800;"></div>
       </div>
     </div>
   </div>
 
   <!-- Модалка расшифровки -->
-  <div class="overlay" id="bd-modal" style="display:none; align-items:center; justify-content:center;">
-    <div style="width:min(96vw,700px); max-height:80vh; overflow:auto; background:#fff; border-radius:16px; padding:16px; box-shadow:var(--shadow2);">
-      <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
-        <div id="bd-title" style="font-weight:900; margin-right:auto;">Расшифровка</div>
-        <input id="bd-search" placeholder="Поиск..." style="padding:10px 12px; border:2px solid #eee; border-radius:10px;">
-        <button id="bd-close" class="menu-button" style="background:#dc2626; color:#fff;">Закрыть</button>
+  <div class="modal" id="bd-modal">
+    <div class="modal-body">
+      <div class="bd-head">
+        <div id="bd-title" style="font-weight:900;margin-right:auto;">Расшифровка</div>
+        <input id="bd-search" placeholder="Поиск...">
+        <button id="bd-close" class="menu-button" style="background:var(--danger);color:#fff">Закрыть</button>
       </div>
       <div id="bd-list"></div>
-      <div id="bd-pager" style="margin-top:8px; text-align:center; color:#6b7280;"></div>
+      <div id="bd-pager" style="margin-top:12px;color:var(--tg-theme-hint-color);text-align:center;"></div>
     </div>
   </div>
 
-  <script>
-    const tg = window.Telegram?.WebApp;
-    if (tg){ tg.ready(); tg.expand(); }
+<script>
+  // Telegram theme
+  const tg = window.Telegram?.WebApp;
+  if(tg){ tg.ready(); tg.expand(); const theme=tg.colorScheme||'light'; document.documentElement.setAttribute('data-theme',theme);
+    if(theme==='dark'){ document.documentElement.style.setProperty('--tg-theme-bg-color',tg.themeParams.bg_color || '#18181b');
+      document.documentElement.style.setProperty('--tg-theme-text-color',tg.themeParams.text_color || '#ffffff');
+      document.documentElement.style.setProperty('--tg-theme-secondary-bg-color',tg.themeParams.secondary_bg_color || '#27272a'); } }
 
-    const MONTHS=[{label:'Сентябрь',value:9},{label:'Октябрь',value:10},{label:'Ноябрь',value:11},{label:'Декабрь',value:12},{label:'Январь',value:1},{label:'Февраль',value:2},{label:'Март',value:3},{label:'Апрель',value:4},{label:'Май',value:5},{label:'Июнь',value:6}];
-    function fillMonthSelect(sel){ sel.innerHTML=MONTHS.map(m=>`<option value="${m.value}">${m.label}</option>`).join(''); }
+  // Months
+  const MONTHS=[{label:'Сентябрь',value:9},{label:'Октябрь',value:10},{label:'Ноябрь',value:11},{label:'Декабрь',value:12},{label:'Январь',value:1},{label:'Февраль',value:2},{label:'Март',value:3},{label:'Апрель',value:4},{label:'Май',value:5},{label:'Июнь',value:6}];
+  function fillMonthSelect(sel){ sel.innerHTML=MONTHS.map(m=>`<option value="${m.value}">${m.label}</option>`).join(''); }
 
-    let currentMode='текущий';
-    let currentBranch='Private';
-    let studentsMode='current';
-    let staffMode='current';
+  // State
+  let currentMode='текущий', currentBranch='Private', studentsMode='current', staffMode='current';
 
-    // меню
-    const menu = document.getElementById('side-menu');
-    const overlay = document.getElementById('overlay');
-    document.getElementById('menuBtn').addEventListener('click', (e)=>{e.stopPropagation();toggleMenu(true);});
-    overlay.addEventListener('click', ()=>toggleMenu(false));
-    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') toggleMenu(false); });
-    function toggleMenu(open){ const toOpen=open ?? !menu.classList.contains('open'); if(toOpen){ menu.classList.add('open'); overlay.classList.add('show'); } else { menu.classList.remove('open'); overlay.classList.remove('show'); } }
+  // ---- guards for async requests
+  const controllers = { svod:null, svodkpi:null, svoddetail:null, dds:null, students:null, staff:null, pk:null, reports:null, bd:null };
+  const version     = { svod:0,    svodkpi:0,    svoddetail:0,    dds:0,    students:0,    staff:0,    pk:0,    reports:0,    bd:0    };
+  function startReq(key){
+    try{ controllers[key]?.abort(); }catch{}
+    controllers[key] = new AbortController();
+    version[key] += 1;
+    return { signal: controllers[key].signal, v: version[key] };
+  }
+  function stillLatest(key, v, branchAtStart){
+    return v === version[key] && branchAtStart === currentBranch;
+  }
 
-    menu.querySelectorAll('button[data-section]').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const sec = btn.dataset.section; toggleMenu(false);
-        if (sec==='dashboard'){ showOnly('dashboard-section'); initDashboard(); }
-        else if (sec==='dds'){ showOnly('dds-section'); loadSummary(currentMode); updatePeriodLabel(currentMode); }
-        else if (sec==='students'){ showOnly('students-section'); document.getElementById('students-branch-label').innerText=currentBranch; loadStudents(); }
-        else if (sec==='staff'){ showOnly('staff-section'); document.getElementById('staff-branch-label').innerText=currentBranch; loadStaff(); }
-        else if (sec==='calendar'){ showOnly('pk-section'); document.getElementById('pk-branch-label').innerText=currentBranch; loadPK(); }
-        else if (sec==='report'){ showOnly('reports-section'); loadReports(); }
-      });
+  // Menu
+  const menu=document.getElementById('side-menu'), overlay=document.getElementById('overlay');
+  document.getElementById('menuBtn').addEventListener('click',e=>{e.stopPropagation();toggleMenu(true);});
+  overlay.addEventListener('click',()=>toggleMenu(false));
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleMenu(false);});
+  function toggleMenu(open){const toOpen=open??!menu.classList.contains('open'); if(toOpen){menu.classList.add('open');overlay.classList.add('show');}else{menu.classList.remove('open');overlay.classList.remove('show');}}
+
+  menu.querySelectorAll('button[data-section]').forEach(btn=>{
+    btn.addEventListener('click',()=>{ const sec=btn.dataset.section; toggleMenu(false);
+      if(sec==='dds'){ showOnly('dds-section'); loadSummary(currentMode); updatePeriodLabel(currentMode); }
+      else if(sec==='students'){ showOnly('students-section'); document.getElementById('students-branch-label').innerText=currentBranch; loadStudents(); }
+      else if(sec==='staff'){ showOnly('staff-section'); document.getElementById('staff-branch-label').innerText=currentBranch; loadStaff(); }
+      else if(sec==='calendar'){ showOnly('pk-section'); document.getElementById('pk-branch-label').innerText=currentBranch; loadPK(); }
+      else if(sec==='report'){ showOnly('reports-section'); loadReports(); }
     });
+  });
 
-    function showOnly(id){
-      ['dashboard-section','svod-details-section','dds-section','students-section','staff-section','pk-section','reports-section']
-        .forEach(x=>document.getElementById(x).style.display=(x===id)?'block':'none');
-    }
-    function isVisible(id){ return document.getElementById(id).style.display==='block'; }
+  function showOnly(id){
+    ['dashboard-section','svod-detail-section','dds-section','students-section','staff-section','pk-section','reports-section']
+      .forEach(x=>document.getElementById(x).style.display=(x===id)?'block':'none');
+  }
+  function isVisible(id){ return document.getElementById(id).style.display==='block'; }
 
-    // выбор филиала
-    const branchSelect = document.getElementById('branch-select');
-    currentBranch = branchSelect.value || 'Private';
-    branchSelect.addEventListener('change', ()=>{
-      currentBranch = branchSelect.value;
-      if(isVisible('dashboard-section')) initDashboard();
-      if(isVisible('dds-section')){ loadSummary(currentMode); updatePeriodLabel(currentMode); }
-      if(isVisible('students-section')){ document.getElementById('students-branch-label').innerText=currentBranch; loadStudents(); }
-      if(isVisible('staff-section')){ document.getElementById('staff-branch-label').innerText=currentBranch; loadStaff(); }
-      if(isVisible('pk-section')){ document.getElementById('pk-branch-label').innerText=currentBranch; loadPK(); }
-      if(isVisible('reports-section')) loadReports();
-    });
+  // Branch change + instant UI reset
+  const branchSelect=document.getElementById('branch-select');
+  currentBranch=branchSelect.value||'Private';
+  branchSelect.addEventListener('change',()=>{
+    currentBranch=branchSelect.value;
 
-    // формат
-    function parseNumber(s){
-      if(typeof s!=='string') return Number(s)||0;
-      const cleaned=s.replace(/[^\d,.\- ]/g,'').replace(/\s/g,'');
-      if(cleaned.includes(',') && !cleaned.includes('.')) return parseFloat(cleaned.replace(',','.'))||0;
-      return parseFloat(cleaned)||0;
-    }
-    const fmt=n=>Number.isFinite(n)?n.toLocaleString('ru-RU'):String(n);
+    // instant reset for DDS UI
+    const incomeEl=document.getElementById('kpi-income');
+    const expenseEl=document.getElementById('kpi-expense');
+    const netEl=document.getElementById('kpi-net');
+    if(incomeEl) incomeEl.textContent='…';
+    if(expenseEl) expenseEl.textContent='…';
+    if(netEl)     netEl.textContent='…';
+    const sumTbl=document.getElementById('summary-table');
+    if(sumTbl) sumTbl.innerHTML='';
 
-    // СВОД (главная)
-    function renderBlock(elId, rows){
-      const html=(rows||[]).map(r=>`<tr><td>${r[0]??''}</td><td>${r[1]??''}</td></tr>`).join('');
-      document.getElementById(elId).innerHTML=html;
-    }
-    function loadSvod(){
-      fetch('/svod').then(r=>r.json()).then(d=>{
-        renderBlock('svod-p1', d.p1||[]);
-        renderBlock('svod-p2', d.p2||[]);
-        renderBlock('svod-p3', d.p3||[]);
-      });
-    }
-    function loadSvodBtn(){
-      fetch('/svod-details').then(r=>r.json()).then(d=>{
-        const btn=document.getElementById('svod-btn');
-        btn.textContent = d.b6 ? d.b6 : 'Показать детализацию';
-        btn.onclick = ()=>{
-          showOnly('svod-details-section');
-          renderSvodDetails(d);
-        };
-      });
-    }
-    function renderSvodDetails(d){
-      const mk = a => (a||[]).map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join('');
-      document.getElementById('svod-detail-1').innerHTML = mk(d.part1);
-      document.getElementById('svod-detail-2').innerHTML = mk(d.part2);
-      document.getElementById('svod-detail-3').innerHTML = mk(d.part3);
-    }
-    function initDashboard(){ loadSvod(); loadSvodBtn(); }
+    if(isVisible('dashboard-section')){ loadSvod(); loadSvodKpi(); }
+    if(isVisible('svod-detail-section')) loadSvodDetail();
+    if(isVisible('dds-section')){ loadSummary(currentMode); updatePeriodLabel(currentMode); }
+    if(isVisible('students-section')){ document.getElementById('students-branch-label').innerText=currentBranch; loadStudents(); }
+    if(isVisible('staff-section')){ document.getElementById('staff-branch-label').innerText=currentBranch; loadStaff(); }
+    if(isVisible('pk-section')){ document.getElementById('pk-branch-label').innerText=currentBranch; loadPK(); }
+    if(isVisible('reports-section'))  loadReports();
+  });
 
-    // ДДС
-    function buildSummaryTable(rows, net){
-      const tb=document.getElementById('summary-table');
-      const body = rows.map(r=>{
-        const name=r[0]??''; const raw=r[1]??''; const val=parseNumber(raw);
-        const cls = val>0?'positive':(val<0?'negative':'');
-        return `<tr class="${cls}"><td>${name}</td><td style="text-align:right">${fmt(val)}</td></tr>`;
-      }).join('');
-      tb.innerHTML = body + `<tr class="total"><td>ИТОГО (чистый результат)</td><td style="text-align:right">${fmt(net)}</td></tr>`;
-    }
-    function loadSummary(mode){
-      fetch(`/summary?mode=${encodeURIComponent(mode)}&branch=${encodeURIComponent(currentBranch)}`)
-        .then(r=>r.json())
-        .then(rows=>{
-          let income=0, expense=0;
-          rows.forEach(r=>{ if(r.length<2) return; const v=parseNumber(r[1]); if(v>0) income+=v; else expense+=Math.abs(v); });
-          const net=income-expense;
-          document.getElementById('kpi-income').textContent  = `${fmt(income)} ₸`;
-          document.getElementById('kpi-expense').textContent = `${fmt(expense)} ₸`;
-          document.getElementById('kpi-net').textContent     = `${fmt(net)} ₸`;
-          buildSummaryTable(rows, net);
-        });
-    }
-    function updatePeriodLabel(mode){
-      const label=document.getElementById('period-label');
-      const today=(()=>{const d=new Date(); const t=n=>n<10?`0${n}`:n; return `${t(d.getDate())}.${t(d.getMonth()+1)}.${d.getFullYear()}`;})();
-      if(mode==='текущий') label.textContent = `Отчёт на сегодня (${currentBranch}): ${today}`;
-      else if(mode==='дата'){
-        const v=document.getElementById('date-input').value;
-        if(v){ const [y,m,d]=v.split('-'); label.textContent=`Отчёт на ${d}.${m}.${y} (${currentBranch})`; }
-        else label.textContent=`Отчёт на выбранную дату (${currentBranch})`;
-      }else{
-        const mSel=document.getElementById('month-select'); const lab=mSel.options[mSel.selectedIndex]?.text||'месяц';
-        label.textContent = `Отчёт за месяц: ${lab} (${currentBranch})`;
-      }
-    }
-    function activateDdsTab(mode){
-      document.querySelectorAll('#dds-section .tab').forEach(t=>t.classList.toggle('active', t.dataset.mode===mode));
-      document.getElementById('controls-date').style.display  = (mode==='дата')   ? 'flex' : 'none';
-      document.getElementById('controls-month').style.display = (mode==='месяц')  ? 'flex' : 'none';
-    }
-    function setDate(){
+  // SVOD (блоки на главной)
+  function renderBlock(elId, rows){ document.getElementById(elId).innerHTML=(rows||[]).map(r=>`<tr><td>${r[0]??''}</td><td>${r[1]??''}</td></tr>`).join(''); }
+  function loadSvod(){
+    const {signal, v} = startReq('svod');
+    const b=currentBranch;
+    ['svod-p1','svod-p2','svod-p3'].forEach(id=>document.getElementById(id).innerHTML='');
+    fetch('/svod', { signal })
+      .then(r=>r.json())
+      .then(d=>{ if(!stillLatest('svod', v, b)) return;
+        renderBlock('svod-p1', d.p1||[]); renderBlock('svod-p2', d.p2||[]); renderBlock('svod-p3', d.p3||[]); })
+      .catch(e=>{ if(e.name!=='AbortError') console.warn('svod error', e); });
+  }
+
+  // NEW: KPI кнопка (Свод!B6)
+  function loadSvodKpi(){
+    const {signal, v} = startReq('svodkpi');
+    const b=currentBranch;
+    document.getElementById('svod-kpi-value').textContent='…';
+    fetch('/svod-kpi', { signal })
+      .then(r=>r.json())
+      .then(d=>{ if(!stillLatest('svodkpi', v, b)) return;
+        document.getElementById('svod-kpi-value').textContent = d.value || '—'; })
+      .catch(e=>{ if(e.name!=='AbortError') console.warn('svod-kpi', e); });
+  }
+  document.getElementById('svod-kpi-btn').addEventListener('click', ()=>{
+    openSvodDetail();
+  });
+
+  // NEW: Детализация Свод (A18:B22, A32:B36, A46:B50)
+  function openSvodDetail(){ showOnly('svod-detail-section'); loadSvodDetail(); }
+  function loadSvodDetail(){
+    const {signal, v} = startReq('svoddetail');
+    const b=currentBranch;
+    ['svod-d1','svod-d2','svod-d3'].forEach(id=>document.getElementById(id).innerHTML='');
+    fetch('/svod-detail', { signal })
+      .then(r=>r.json())
+      .then(d=>{ if(!stillLatest('svoddetail', v, b)) return;
+        renderBlock('svod-d1', d.p1||[]); renderBlock('svod-d2', d.p2||[]); renderBlock('svod-d3', d.p3||[]); })
+      .catch(e=>{ if(e.name!=='AbortError') console.warn('svod-detail', e); });
+  }
+
+  // Helpers
+  function parseNumber(s){ if(typeof s!=='string') return Number(s)||0; const cleaned=s.replace(/[^\d,.\- ]/g,'').replace(/\s/g,''); return cleaned.includes(',')&&!cleaned.includes('.')?parseFloat(cleaned.replace(',','.'))||0:parseFloat(cleaned)||0; }
+  const fmt=n=>Number.isFinite(n)?n.toLocaleString('ru-RU'):String(n);
+
+  // DDS
+  function buildSummaryTable(rows, net){
+    const tb=document.getElementById('summary-table');
+    const body=(rows||[]).map(r=>{
+      const name=r[0]??'', raw=r[1]??'', val=parseNumber(raw);
+      const cls = val>0?'positive':(val<0?'negative':'');
+      return `<tr class="${cls}"><td>${name}</td><td style="text-align:right">${fmt(val)}</td></tr>`;
+    }).join('');
+    tb.innerHTML= body + `<tr class="total"><td>ИТОГО (чистый результат)</td><td style="text-align:right">${fmt(net)}</td></tr>`;
+  }
+  function loadSummary(mode){
+    const {signal, v} = startReq('dds');
+    const b=currentBranch;
+
+    document.getElementById('kpi-income').textContent='…';
+    document.getElementById('kpi-expense').textContent='…';
+    document.getElementById('kpi-net').textContent='…';
+    document.getElementById('summary-table').innerHTML='';
+
+    fetch(`/summary?mode=${encodeURIComponent(mode)}&branch=${encodeURIComponent(b)}`, { signal })
+      .then(r=>r.json())
+      .then(rows=>{
+        if(!stillLatest('dds', v, b)) return;
+        let income=0, expense=0;
+        (rows||[]).forEach(r=>{ if(r.length<2) return; const v=parseNumber(r[1]); if(v>0) income+=v; else expense+=Math.abs(v); });
+        const net=income-expense;
+        document.getElementById('kpi-income').textContent=`${fmt(income)} ₸`;
+        document.getElementById('kpi-expense').textContent=`${fmt(expense)} ₸`;
+        document.getElementById('kpi-net').textContent=`${fmt(net)} ₸`;
+        buildSummaryTable(rows||[], net);
+      })
+      .catch(e=>{ if(e.name!=='AbortError') console.warn('DDS error', e); });
+  }
+  function updatePeriodLabel(mode){
+    const label=document.getElementById('period-label'); if(!label) return;
+    const today=(()=>{const d=new Date(); const t=n=>n<10?`0${n}`:n; return `${t(d.getDate())}.${t(d.getMonth()+1)}.${d.getFullYear()}`;})();
+    if(mode==='текущий') label.textContent=`Отчёт на сегодня (${currentBranch}): ${today}`;
+    else if(mode==='дата'){
       const v=document.getElementById('date-input').value;
-      if(!v) return alert('Выберите дату');
-      const [y,m,d]=v.split('-'); const formatted=`${d}.${m}.${y}`;
-      fetch(`/set-date?value=${encodeURIComponent(formatted)}&branch=${encodeURIComponent(currentBranch)}`)
-        .then(()=>{ currentMode='дата'; activateDdsTab('дата'); loadSummary('дата'); updatePeriodLabel('дата'); document.activeElement?.blur(); });
+      label.textContent = v ? `Отчёт на ${v.split('-').reverse().join('.')} (${currentBranch})` : `Отчёт на выбранную дату (${currentBranch})`;
+    }else{
+      const mSel=document.getElementById('month-select'); const lab=mSel.options[mSel.selectedIndex]?.text||'месяц';
+      label.textContent=`Отчёт за месяц: ${lab} (${currentBranch})`;
     }
-    function setMonth(){
-      const m=document.getElementById('month-select').value;
-      fetch(`/set-month?value=${encodeURIComponent(m)}&branch=${encodeURIComponent(currentBranch)}`)
-        .then(()=>{ currentMode='месяц'; activateDdsTab('месяц'); loadSummary('месяц'); updatePeriodLabel('месяц'); document.activeElement?.blur(); });
-    }
-    document.querySelectorAll('#dds-section .tab').forEach(tab=>{
-      tab.addEventListener('click', ()=>{
-        const mode=tab.dataset.mode; currentMode=mode;
-        activateDdsTab(mode); loadSummary(mode); updatePeriodLabel(mode);
-      });
-    });
+  }
+  function activateDdsTab(mode){
+    document.querySelectorAll('#dds-section .tab').forEach(t=>t.classList.toggle('active', t.dataset.mode===mode));
+    document.getElementById('controls-date').style.display=(mode==='дата')?'flex':'none';
+    document.getElementById('controls-month').style.display=(mode==='месяц')?'flex':'none';
+  }
+  function setDate(){
+    const v=document.getElementById('date-input').value; if(!v) return alert('Выберите дату');
+    const [y,m,d]=v.split('-'); const f=`${d}.${m}.${y}`;
+    fetch(`/set-date?value=${encodeURIComponent(f)}&branch=${encodeURIComponent(currentBranch)}`)
+      .then(()=>{ currentMode='дата'; activateDdsTab('дата'); loadSummary('дата'); updatePeriodLabel('дата'); document.activeElement?.blur(); });
+  }
+  function setMonth(){
+    const m=document.getElementById('month-select').value;
+    fetch(`/set-month?value=${encodeURIComponent(m)}&branch=${encodeURIComponent(currentBranch)}`)
+      .then(()=>{ currentMode='месяц'; activateDdsTab('месяц'); loadSummary('месяц'); updatePeriodLabel('месяц'); document.activeElement?.blur(); });
+  }
+  document.querySelectorAll('#dds-section .tab').forEach(tab=>tab.addEventListener('click',()=>{ const mode=tab.dataset.mode; currentMode=mode; activateDdsTab(mode); loadSummary(mode); updatePeriodLabel(mode); }));
 
-    // Расшифровка (модалка)
-    const bdModal = document.getElementById('bd-modal');
-    const bdList  = document.getElementById('bd-list');
-    const bdPager = document.getElementById('bd-pager');
-    let bdPage=1, bdLimit=50, bdTotal=0;
-
-    document.getElementById('btn-breakdown').addEventListener('click', ()=>{
-      bdPage=1; fetchBreakdown(); bdModal.style.display='flex';
-    });
-    document.getElementById('bd-close').addEventListener('click', ()=>{bdModal.style.display='none';});
-    document.getElementById('bd-search').addEventListener('input', ()=>{ clearTimeout(window.__bd_t); window.__bd_t=setTimeout(()=>{bdPage=1; fetchBreakdown();},300); });
-
-    function fetchBreakdown(){
-      const search = document.getElementById('bd-search').value.trim();
-      const q = new URLSearchParams({branch:currentBranch, scope:currentMode, page:bdPage, limit:bdLimit, search});
-      fetch(`/breakdown?${q.toString()}`).then(r=>r.json()).then(d=>{
-        bdTotal=d.total||0;
-        renderBreakdown(d.data||[]);
+  // Breakdown
+  const bdModal=document.getElementById('bd-modal'), bdList=document.getElementById('bd-list'), bdPager=document.getElementById('bd-pager');
+  let bdPage=1, bdLimit=50, bdTotal=0;
+  document.getElementById('btn-breakdown').addEventListener('click', openBreakdown);
+  document.getElementById('bd-close').addEventListener('click', ()=>bdModal.classList.remove('show'));
+  document.getElementById('bd-search').addEventListener('input',()=>{clearTimeout(window.__bd_t); window.__bd_t=setTimeout(()=>{bdPage=1; fetchBreakdown();},300);});
+  function openBreakdown(){ document.getElementById('bd-title').textContent=`Расшифровка — ${currentBranch} · ${currentMode}`; bdPage=1; fetchBreakdown(); bdModal.classList.add('show'); }
+  function fetchBreakdown(){
+    const {signal, v} = startReq('bd');
+    const b=currentBranch;
+    const search=document.getElementById('bd-search').value.trim();
+    const q=new URLSearchParams({branch:b, scope:currentMode, page:bdPage, limit:bdLimit, search});
+    bdList.innerHTML='';
+    fetch(`/breakdown?${q.toString()}`, { signal })
+      .then(r=>r.json())
+      .then(d=>{
+        if(!stillLatest('bd', v, b)) return;
+        bdTotal=d.total||0; renderBreakdown(d.data||[]);
         const from=Math.min((bdPage-1)*bdLimit+1, bdTotal), to=Math.min(bdPage*bdLimit, bdTotal);
-        bdPager.innerHTML = `${bdTotal?from:0}-${to} из ${bdTotal}
-          &nbsp;<button class="menu-button" style="padding:6px 10px" ${bdPage<=1?'disabled':''} onclick="bdPrev()">←</button>
-          <button class="menu-button" style="padding:6px 10px" ${bdPage*bdLimit>=bdTotal?'disabled':''} onclick="bdNext()">→</button>`;
-      });
-    }
-    window.bdPrev=()=>{ if(bdPage>1){ bdPage--; fetchBreakdown(); } };
-    window.bdNext=()=>{ if(bdPage*bdLimit<bdTotal){ bdPage++; fetchBreakdown(); } };
-    function renderBreakdown(rows){
-      bdList.innerHTML = rows.map(x=>{
-        const raw=(x.amount||'').toString(); const val=parseNumber(raw);
-        const cls=Number.isFinite(val)?(val<0?'negative':'positive'):'';
-        return `<div style="border-bottom:1px solid #eee; padding:10px 6px;">
-          <div style="display:flex; justify-content:space-between; gap:8px; font-weight:700;">
-            <div>${x.article||''}</div>
-            <div class="${cls==='positive'?'':'negative'}">${raw}</div>
-          </div>
-          <div style="color:#6b7280; margin-top:6px; line-height:1.6">
-            <div><b>Контрагент:</b> ${x.counterparty||'-'}</div>
-            <div><b>Назначение:</b> ${x.purpose||'-'}</div>
-          </div>
-        </div>`;
-      }).join('');
-    }
+        bdPager.innerHTML=`${bdTotal?from:0}-${to} из ${bdTotal} &nbsp;
+          <button class="btn-back" ${bdPage<=1?'disabled':''} onclick="bdPrev()">← Назад</button>
+          <button class="btn-back" ${bdPage*bdLimit>=bdTotal?'disabled':''} onclick="bdNext()">Вперёд →</button>`;
+      })
+      .catch(e=>{ if(e.name!=='AbortError') console.warn('bd error', e); });
+  }
+  window.bdPrev=()=>{ if(bdPage>1){ bdPage--; fetchBreakdown(); } };
+  window.bdNext=()=>{ if(bdPage*bdLimit<bdTotal){ bdPage++; fetchBreakdown(); } };
+  function renderBreakdown(rows){
+    bdList.innerHTML=(rows||[]).map(x=>{
+      const raw=(x.amount||'').toString(); const val=parseNumber(raw); const cls=Number.isFinite(val)?(val<0?'amt-neg':'amt-pos'):'';
+      return `<div class="row"><div class="top"><div>${x.article||''}</div><div class="${cls}">${raw}</div></div><div class="bottom">
+        <div><b>Контрагент:</b> ${x.counterparty||'-'}</div><div><b>Назначение:</b> ${x.purpose||'-'}</div></div></div>`;
+    }).join('');
+    bdList.querySelectorAll('.row').forEach(r=>r.addEventListener('click',()=>r.classList.toggle('open')));
+  }
 
-    // Ученики/Сотрудники/ПК/Отчёты — как раньше
-    function closeStudents(){ showOnly('dashboard-section'); }
-    function studentsSetMonth(){ const m=document.getElementById('students-month-select').value; fetch(`/students-set-month?value=${encodeURIComponent(m)}&branch=${encodeURIComponent(currentBranch)}`).then(()=>loadStudents()); }
-    function loadStudents(){ fetch(`/students?branch=${encodeURIComponent(currentBranch)}&mode=${encodeURIComponent(studentsMode)}`).then(r=>r.json()).then(d=>{ const rows=d?.rows||[]; document.getElementById('students-table').innerHTML=rows.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join(''); }); }
-    document.getElementById('students-tab-current')?.addEventListener('click',()=>{ studentsMode='current'; document.getElementById('students-tab-current').classList.add('active'); document.getElementById('students-tab-month').classList.remove('active'); document.getElementById('students-month-controls').style.display='none'; document.getElementById('students-period-label').innerText='Отчет (текущий)'; loadStudents(); });
-    document.getElementById('students-tab-month')?.addEventListener('click',()=>{ studentsMode='month'; document.getElementById('students-tab-month').classList.add('active'); document.getElementById('students-tab-current').classList.remove('active'); document.getElementById('students-month-controls').style.display='flex'; document.getElementById('students-period-label').innerText='Отчет (месяц)'; loadStudents(); });
+  // Students
+  function closeStudents(){ showOnly('dashboard-section'); }
+  function studentsSetMonth(){ const m=document.getElementById('students-month-select').value;
+    fetch(`/students-set-month?value=${encodeURIComponent(m)}&branch=${encodeURIComponent(currentBranch)}`).then(()=>loadStudents()); }
+  function loadStudents(){
+    const {signal, v} = startReq('students');
+    const b=currentBranch;
+    document.getElementById('students-table').innerHTML='';
+    fetch(`/students?branch=${encodeURIComponent(b)}&mode=${encodeURIComponent(studentsMode)}`, {signal})
+      .then(r=>r.json()).then(d=>{
+        if(!stillLatest('students', v, b)) return;
+        const rows=d?.rows||[];
+        document.getElementById('students-table').innerHTML =
+          rows.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join('');
+      }).catch(e=>{ if(e.name!=='AbortError') console.warn('students', e); });
+  }
+  document.getElementById('students-tab-current').addEventListener('click',()=>{ studentsMode='current';
+    document.getElementById('students-tab-current').classList.add('active'); document.getElementById('students-tab-month').classList.remove('active');
+    document.getElementById('students-month-controls').style.display='none'; document.getElementById('students-period-label').innerText='Отчет (текущий)'; loadStudents(); });
+  document.getElementById('students-tab-month').addEventListener('click',()=>{ studentsMode='month';
+    document.getElementById('students-tab-current').classList.remove('active'); document.getElementById('students-tab-month').classList.add('active');
+    document.getElementById('students-month-controls').style.display='flex'; document.getElementById('students-period-label').innerText='Отчет (за выбранный месяц)'; loadStudents(); });
 
-    function closeStaff(){ showOnly('dashboard-section'); }
-    function staffSetMonth(){ const m=document.getElementById('staff-month-select').value; fetch(`/staff-set-month?value=${encodeURIComponent(m)}&branch=${encodeURIComponent(currentBranch)}`).then(()=>loadStaff()); }
-    function loadStaff(){ fetch(`/staff?branch=${encodeURIComponent(currentBranch)}&mode=${encodeURIComponent(staffMode)}`).then(r=>r.json()).then(d=>{ const rows=d?.rows||[]; document.getElementById('staff-table').innerHTML=rows.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join(''); }); }
-    document.getElementById('staff-tab-current')?.addEventListener('click',()=>{ staffMode='current'; document.getElementById('staff-tab-current').classList.add('active'); document.getElementById('staff-tab-month').classList.remove('active'); document.getElementById('staff-month-controls').style.display='none'; document.getElementById('staff-period-label').innerText='Отчет (текущий)'; loadStaff(); });
-    document.getElementById('staff-tab-month')?.addEventListener('click',()=>{ staffMode='month'; document.getElementById('staff-tab-month').classList.add('active'); document.getElementById('staff-tab-current').classList.remove('active'); document.getElementById('staff-month-controls').style.display='flex'; document.getElementById('staff-period-label').innerText='Отчет (месяц)'; loadStaff(); });
+  // Staff
+  function closeStaff(){ showOnly('dashboard-section'); }
+  function staffSetMonth(){ const m=document.getElementById('staff-month-select').value;
+    fetch(`/staff-set-month?value=${encodeURIComponent(m)}&branch=${encodeURIComponent(currentBranch)}`).then(()=>loadStaff()); }
+  function loadStaff(){
+    const {signal, v} = startReq('staff');
+    const b=currentBranch;
+    document.getElementById('staff-table').innerHTML='';
+    fetch(`/staff?branch=${encodeURIComponent(b)}&mode=${encodeURIComponent(staffMode)}`, {signal})
+      .then(r=>r.json()).then(d=>{
+        if(!stillLatest('staff', v, b)) return;
+        const rows=d?.rows||[];
+        document.getElementById('staff-table').innerHTML =
+          rows.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join('');
+      }).catch(e=>{ if(e.name!=='AbortError') console.warn('staff', e); });
+  }
+  document.getElementById('staff-tab-current').addEventListener('click',()=>{ staffMode='current';
+    document.getElementById('staff-tab-current').classList.add('active'); document.getElementById('staff-tab-month').classList.remove('active');
+    document.getElementById('staff-month-controls').style.display='none'; document.getElementById('staff-period-label').innerText='Отчет (текущий)'; loadStaff(); });
+  document.getElementById('staff-tab-month').addEventListener('click',()=>{ staffMode='month';
+    document.getElementById('staff-tab-current').classList.remove('active'); document.getElementById('staff-tab-month').classList.add('active');
+    document.getElementById('staff-month-controls').style.display='flex'; document.getElementById('staff-period-label').innerText='Отчет (за выбранный месяц)'; loadStaff(); });
 
-    function closePK(){ showOnly('dashboard-section'); }
-    function loadPK(){
-      fetch(`/pk?branch=${encodeURIComponent(currentBranch)}`).then(r=>r.json()).then(d=>{
-        const header = d?.header||[], table = d?.table||[];
-        document.getElementById('pk-header').innerHTML = header.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join('');
-        document.getElementById('pk-table').innerHTML  = table.map(r=>`<tr><td>${r[0]??''}</td><td>${r[1]??''}</td><td style="text-align:right">${r[2]??''}</td></tr>`).join('');
-      });
-    }
-
-    function closeReports(){ showOnly('dashboard-section'); }
-    function loadReports(){
-      fetch(`/reports`).then(r=>r.json()).then(d=>{
-        const list = d?.months||[];
-        const html = list.map(m=>{
-          return `<div class="dash-block"><div style="font-weight:900; margin-bottom:6px;">${m.title}</div>${
-            (m.files||[]).map(f=>`<div style="display:flex; align-items:center; gap:8px; margin:6px 0;"><a href="${f.url}" target="_blank">📄 ${f.name}</a></div>`).join('')
-          }</div>`;
+  // PK
+  function closePK(){ showOnly('dashboard-section'); }
+  function loadPK(){
+    const {signal, v} = startReq('pk');
+    const b=currentBranch;
+    document.getElementById('pk-header').innerHTML='';
+    document.getElementById('pk-table').innerHTML='';
+    fetch(`/pk?branch=${encodeURIComponent(b)}`, {signal})
+      .then(r=>r.json())
+      .then(d=>{
+        if(!stillLatest('pk', v, b)) return;
+        const header=d?.header||[], table=d?.table||[];
+        document.getElementById('pk-header').innerHTML=header.map(r=>`<tr><td>${r[0]??''}</td><td>${r[1]??''}</td></tr>`).join('');
+        document.getElementById('pk-table').innerHTML=table.map(r=>{
+          const date=r[0]??'', inout=r[1]??'', bal=r[2]??'';
+          let balClass='', balVal=bal; const numBal=parseNumber(bal);
+          if(Number.isFinite(numBal)){ balClass=numBal<0?'pk-bad pk-neg':(numBal>=0?'pk-pos':''); balVal=fmt(numBal); }
+          let inoutHtml=''; if(inout){ const parts=inout.split('\n');
+            inoutHtml = parts.length===2 ? `<div class="pk-inout"><div class="pk-income">↑ ${parts[0]}</div><div class="pk-expense">↓ ${parts[1]}</div></div>` : inout; }
+          return `<tr><td>${date}</td><td>${inoutHtml}</td><td class="${balClass}">${balVal}</td></tr>`;
         }).join('');
-        document.getElementById('reports-list').innerHTML = html || '<div class="dash-block">Нет файлов</div>';
-      });
-    }
+      })
+      .catch(e=>{ if(e.name!=='AbortError') console.warn('pk error', e); });
+  }
 
-    // загрузка/удаление отчётов
-    document.getElementById('upload-form').addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const ym=document.getElementById('upload-ym').value;
-      const file=document.getElementById('upload-file').files[0];
-      const msg=document.getElementById('upload-msg');
-      if(!ym||!file){ msg.textContent='Выбери месяц и файл.'; return; }
-      const fd=new FormData(); fd.append('ym',ym); fd.append('file',file);
-      const res = await fetch('/reports/upload',{method:'POST', body:fd});
-      if(res.ok){ msg.textContent='Файл загружен ✅'; document.getElementById('upload-file').value=''; loadReports(); }
-      else{ const t=await res.json().catch(()=>({error:'Ошибка загрузки'})); msg.textContent=`Ошибка: ${t.error || 'неизвестно'}`; msg.style.color='#dc2626'; }
-      setTimeout(()=>msg.textContent='', 3000);
-    });
-    document.getElementById('delete-btn').addEventListener('click', async ()=>{
-      const ym=prompt('Период (YYYY-MM):'); const name=prompt('Имя файла:'); if(!ym||!name) return;
-      await fetch('/reports/delete',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ym,name})});
-      loadReports();
-    });
+  // Reports
+  function closeReports(){ showOnly('dashboard-section'); }
+  function loadReports(){
+    const {signal, v} = startReq('reports');
+    const b=currentBranch;
+    document.getElementById('reports-list').innerHTML='';
+    fetch('/reports', {signal})
+      .then(r=>r.json())
+      .then(d=>{
+        if(!stillLatest('reports', v, b)) return;
+        const months=d?.months||[];
+        const html=months.map(m=>`<div style="margin-bottom:12px;">
+            <h4 style="margin:0 0 6px;">${m.title}</h4>
+            ${(m.files||[]).map(f=>`<div class="dash-block" style="padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                <a href="${f.url}" target="_blank" style="text-decoration:none;color:var(--tg-theme-link-color);font-weight:800">📄 ${f.name}</a>
+            </div>`).join('')}
+          </div>`).join('');
+        document.getElementById('reports-list').innerHTML=html || '<div class="dash-block">Нет доступных отчётов</div>';
+      })
+      .catch(e=>{ if(e.name!=='AbortError') console.warn('reports error', e); });
+  }
 
-    // инициализация
-    document.addEventListener('DOMContentLoaded', ()=>{
-      fillMonthSelect(document.getElementById('month-select'));
-      fillMonthSelect(document.getElementById('students-month-select'));
-      fillMonthSelect(document.getElementById('staff-month-select'));
+  // Upload / delete
+  document.getElementById('upload-form').addEventListener('submit',async (e)=>{
+    e.preventDefault();
+    const ym=document.getElementById('upload-ym').value, file=document.getElementById('upload-file').files[0];
+    if(!ym||!file){ alert('Выберите месяц и файл'); return; }
+    const fd=new FormData(); fd.append('ym',ym); fd.append('file',file);
+    const res=await fetch('/reports/upload',{method:'POST',body:fd});
+    const t=await res.json().catch(()=>({error:'Ошибка'}));
+    document.getElementById('upload-msg').textContent=t.error||'Файл загружен';
+    loadReports(); setTimeout(()=>document.getElementById('upload-msg').textContent='',3000);
+  });
+  document.getElementById('delete-btn').addEventListener('click',async ()=>{
+    const ym=prompt('Период (YYYY-MM):'); const name=prompt('Имя файла:'); if(!ym||!name) return;
+    const res=await fetch('/reports/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ym,name})});
+    const t=await res.json().catch(()=>({error:'Ошибка'})); alert(t.error||'Удалено'); loadReports();
+  });
 
-      // стартовая страница
-      initDashboard();
+  // Init
+  document.addEventListener('DOMContentLoaded',()=>{
+    fillMonthSelect(document.getElementById('month-select'));
+    fillMonthSelect(document.getElementById('students-month-select'));
+    fillMonthSelect(document.getElementById('staff-month-select'));
 
-      // автообновления лёгкие
-      setInterval(()=>{
-        if(isVisible('dds-section')) loadSummary(currentMode);
-      }, 30000);
-    });
-  </script>
+    showOnly('dashboard-section');
+    loadSvod();
+    loadSvodKpi();
+
+    setInterval(()=>{
+      if(isVisible('dashboard-section')){ loadSvod(); loadSvodKpi(); }
+      if(isVisible('svod-detail-section')) loadSvodDetail();
+      if(isVisible('dds-section'))      loadSummary(currentMode);
+      if(isVisible('students-section'))  loadStudents();
+      if(isVisible('staff-section'))     loadStaff();
+      if(isVisible('pk-section'))        loadPK();
+      if(isVisible('reports-section'))   loadReports();
+    }, 30000);
+  });
+</script>
 </body>
 </html>
