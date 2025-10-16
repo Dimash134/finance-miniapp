@@ -103,23 +103,23 @@ def svod():
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
-# NEW: значение из Свод!B6 (кнопка на главной)
-@app.route('/svod-kpi')
-def svod_kpi():
+# Кнопка «Сумма» и детальная страница «Свод»
+@app.route('/svod-metric')
+def svod_metric():
     try:
         ws = client.open_by_key(SVOD_KEY).worksheet("Свод")
-        value = (ws.acell("B6").value or "").strip()
-        return jsonify({"value": value})
+        metric = (ws.acell("B6").value or "").strip()
+        return jsonify({"metric":metric})
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
-# NEW: детализация по трём блокам
 @app.route('/svod-detail')
 def svod_detail():
+    """Три блока для Private / Highschool / Academy"""
     try:
         ws = client.open_by_key(SVOD_KEY).worksheet("Свод")
-        d1, d2, d3 = ws.batch_get(["A18:B22","A32:B36","A46:B50"])
-        return jsonify({"p1": d1 or [], "p2": d2 or [], "p3": d3 or []})
+        pvt, high, acad = ws.batch_get(["A18:B22", "A32:B36", "A46:B50"])
+        return jsonify({"private":pvt or [], "highschool":high or [], "academy":acad or []})
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
@@ -165,7 +165,7 @@ def delete_report():
 
 # ---------- БАЗОВЫЕ СТРАНИЦЫ ----------
 @app.route('/')
-def home(): return '?? Finance MiniApp работает!'
+def home(): return 'Finance MiniApp работает!'
 @app.route('/app')
 def app_page(): return render_template("index.html")
 
@@ -268,6 +268,9 @@ def set_month():
 # ---------- Платёжный календарь ----------
 @app.route('/pk')
 def pk():
+    """
+    Возвращаем структуру как раньше, но UI теперь рисует всё одной таблицей.
+    """
     try:
         branch = request.args.get("branch","Private")
         sheet = spreadsheet.worksheet("PKBot")
@@ -327,7 +330,7 @@ def telegram_webhook():
     text = (msg.get("text") or "").strip()
     if chat_id and text.startswith("/start"):
         kb={"inline_keyboard":[[{"text":"Открыть Финансовое Приложение","web_app":{"url":WEBAPP_URL}}]]}
-        tg_send_message(chat_id,"Добро пожаловать ??", reply_markup=kb)
+        tg_send_message(chat_id,"Добро пожаловать!", reply_markup=kb)
     return jsonify(ok=True)
 
 if __name__ == '__main__':
