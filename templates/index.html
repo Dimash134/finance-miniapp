@@ -78,6 +78,23 @@
   .dash-block td:first-child{color:var(--tg-theme-hint-color);font-weight:500}
   .dash-block td:last-child{text-align:right;font-weight:800}
 
+  /* Кнопка "Сумма" */
+  .metric-btn{
+    display:inline-flex;align-items:center;gap:10px;
+    background:var(--bg-gradient);color:#fff;border:0;border-radius:16px;
+    padding:14px 18px;font-weight:900;box-shadow:var(--card-shadow);cursor:pointer;transition:var(--tr);
+    margin-bottom:10px
+  }
+  .metric-btn:hover{transform:translateY(-2px);box-shadow:var(--card-shadow-hover)}
+  .metric-value{font-variant-numeric:tabular-nums}
+
+  /* Заголовки блоков в детализации (крупнее и выразительнее) */
+  .org-title{
+    font-size:18px;font-weight:900;margin:0 0 10px 4px;
+    background:var(--bg-gradient);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text
+  }
+
   .tabs{display:flex;gap:8px;justify-content:center;margin:16px 0;flex-wrap:wrap;padding:8px;background:var(--tg-theme-secondary-bg-color);
     border-radius:14px;box-shadow:inset 0 2px 4px rgba(0,0,0,.05)}
   .tab{padding:10px 16px;background:transparent;border:0;border-radius:10px;font-weight:800;color:var(--tg-theme-hint-color);cursor:pointer;transition:var(--tr)}
@@ -112,11 +129,7 @@
   tr.total{background:rgba(102,126,234,.08)}
   tr.total td{font-weight:900;border-top:2px solid rgba(102,126,234,.25)}
 
-  #pk-header{border:0;background:transparent;border-collapse:separate;border-spacing:0 10px;box-shadow:none}
-  #pk-header td{background:var(--tg-theme-secondary-bg-color);padding:14px 16px;font-weight:800;box-shadow:var(--card-shadow)}
-  #pk-header td:first-child{border-radius:12px 0 0 12px}
-  #pk-header td:last-child{border-radius:0 12px 12px 0;text-align:right}
-  #pk-table{border:0;background:transparent;border-collapse:separate;border-spacing:0 8px;box-shadow:none}
+  #pk-table{border-collapse:separate;border-spacing:0 8px} /* всё в одной таблице */
   #pk-table td{background:var(--tg-theme-secondary-bg-color);padding:12px 14px;box-shadow:var(--card-shadow)}
   #pk-table td:first-child{border-radius:12px 0 0 12px}
   #pk-table td:last-child{border-radius:0 12px 12px 0}
@@ -141,16 +154,6 @@
   .row.open .bottom{display:block}
   .amt-pos{color:var(--success);font-weight:900}
   .amt-neg{color:var(--danger);font-weight:900}
-
-  /* KPI button on dashboard */
-  .svod-kpi-btn{
-    display:inline-flex; align-items:center; gap:10px;
-    background:var(--bg-gradient); color:#fff; font-weight:900;
-    border:0; border-radius:14px; padding:12px 16px; box-shadow:var(--card-shadow);
-    cursor:pointer; transition:var(--tr); margin-bottom:8px;
-  }
-  .svod-kpi-btn:hover{transform:translateY(-2px); box-shadow:var(--card-shadow-hover)}
-  .svod-kpi-value{font-size:18px}
 
   @media (max-width:560px){
     .container{padding:16px}
@@ -184,10 +187,10 @@
   <div class="container">
     <!-- Главная -->
     <div id="dashboard-section">
-      <!-- NEW: кнопка KPI из Свод!B6 -->
-      <button id="svod-kpi-btn" class="svod-kpi-btn" title="Открыть детализацию">
+      <!-- Кнопка "Сумма" (без иконки закрепки) -->
+      <button class="metric-btn" id="metricBtn">
         <span>Сумма</span>
-        <span class="svod-kpi-value" id="svod-kpi-value">…</span>
+        <span class="metric-value" id="metricVal">…</span>
       </button>
 
       <div class="dash-title">Сводные данные</div>
@@ -196,15 +199,25 @@
       <div class="dash-block"><table id="svod-p3"></table></div>
     </div>
 
-    <!-- NEW: Детализация Свод -->
+    <!-- Детализация Свод -->
     <div id="svod-detail-section" style="display:none;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
         <button class="btn-back" onclick="showOnly('dashboard-section')">← Назад</button>
-        <div style="font-weight:800">Детализация Свод</div>
+        <div style="font-weight:900">Детализация Свод</div>
       </div>
-      <div class="dash-block"><table id="svod-d1"></table></div>
-      <div class="dash-block"><table id="svod-d2"></table></div>
-      <div class="dash-block"><table id="svod-d3"></table></div>
+
+      <div class="dash-block">
+        <div class="org-title">Private</div>
+        <table id="svod-det-private"></table>
+      </div>
+      <div class="dash-block">
+        <div class="org-title">Highschool</div>
+        <table id="svod-det-high"></table>
+      </div>
+      <div class="dash-block">
+        <div class="org-title">Academy</div>
+        <table id="svod-det-acad"></table>
+      </div>
     </div>
 
     <!-- ДДС -->
@@ -285,7 +298,7 @@
         <button class="btn-back" onclick="closePK()">← Назад</button>
         <div style="font-weight:800">Платежный календарь — <span id="pk-branch-label">Private</span></div>
       </div>
-      <table id="pk-header" style="margin-bottom:10px;"></table>
+      <!-- Всё в одной таблице, как просили -->
       <table id="pk-table"></table>
     </div>
 
@@ -339,8 +352,8 @@
   let currentMode='текущий', currentBranch='Private', studentsMode='current', staffMode='current';
 
   // ---- guards for async requests
-  const controllers = { svod:null, svodkpi:null, svoddetail:null, dds:null, students:null, staff:null, pk:null, reports:null, bd:null };
-  const version     = { svod:0,    svodkpi:0,    svoddetail:0,    dds:0,    students:0,    staff:0,    pk:0,    reports:0,    bd:0    };
+  const controllers = { svod:null, dds:null, students:null, staff:null, pk:null, reports:null, bd:null, metric:null, svd:null };
+  const version     = { svod:0,    dds:0,    students:0,    staff:0,    pk:0,    reports:0,    bd:0,    metric:0,    svd:0    };
   function startReq(key){
     try{ controllers[key]?.abort(); }catch{}
     controllers[key] = new AbortController();
@@ -381,17 +394,11 @@
     currentBranch=branchSelect.value;
 
     // instant reset for DDS UI
-    const incomeEl=document.getElementById('kpi-income');
-    const expenseEl=document.getElementById('kpi-expense');
-    const netEl=document.getElementById('kpi-net');
-    if(incomeEl) incomeEl.textContent='…';
-    if(expenseEl) expenseEl.textContent='…';
-    if(netEl)     netEl.textContent='…';
-    const sumTbl=document.getElementById('summary-table');
-    if(sumTbl) sumTbl.innerHTML='';
+    ['kpi-income','kpi-expense','kpi-net'].forEach(id=>{const el=document.getElementById(id); if(el) el.textContent='…';});
+    const sumTbl=document.getElementById('summary-table'); if(sumTbl) sumTbl.innerHTML='';
+    const pkTbl=document.getElementById('pk-table'); if(pkTbl) pkTbl.innerHTML='';
 
-    if(isVisible('dashboard-section')){ loadSvod(); loadSvodKpi(); }
-    if(isVisible('svod-detail-section')) loadSvodDetail();
+    if(isVisible('dashboard-section')) { loadSvod(); loadMetric(); }
     if(isVisible('dds-section')){ loadSummary(currentMode); updatePeriodLabel(currentMode); }
     if(isVisible('students-section')){ document.getElementById('students-branch-label').innerText=currentBranch; loadStudents(); }
     if(isVisible('staff-section')){ document.getElementById('staff-branch-label').innerText=currentBranch; loadStaff(); }
@@ -399,46 +406,42 @@
     if(isVisible('reports-section'))  loadReports();
   });
 
-  // SVOD (блоки на главной)
+  // SVOD
   function renderBlock(elId, rows){ document.getElementById(elId).innerHTML=(rows||[]).map(r=>`<tr><td>${r[0]??''}</td><td>${r[1]??''}</td></tr>`).join(''); }
   function loadSvod(){
     const {signal, v} = startReq('svod');
-    const b=currentBranch;
     ['svod-p1','svod-p2','svod-p3'].forEach(id=>document.getElementById(id).innerHTML='');
     fetch('/svod', { signal })
       .then(r=>r.json())
-      .then(d=>{ if(!stillLatest('svod', v, b)) return;
-        renderBlock('svod-p1', d.p1||[]); renderBlock('svod-p2', d.p2||[]); renderBlock('svod-p3', d.p3||[]); })
-      .catch(e=>{ if(e.name!=='AbortError') console.warn('svod error', e); });
+      .then(d=>{
+        if(!stillLatest('svod', v, currentBranch)) return;
+        renderBlock('svod-p1', d.p1||[]);
+        renderBlock('svod-p2', d.p2||[]);
+        renderBlock('svod-p3', d.p3||[]);
+      })
+      .catch(()=>{});
   }
 
-  // NEW: KPI кнопка (Свод!B6)
-  function loadSvodKpi(){
-    const {signal, v} = startReq('svodkpi');
-    const b=currentBranch;
-    document.getElementById('svod-kpi-value').textContent='…';
-    fetch('/svod-kpi', { signal })
-      .then(r=>r.json())
-      .then(d=>{ if(!stillLatest('svodkpi', v, b)) return;
-        document.getElementById('svod-kpi-value').textContent = d.value || '—'; })
-      .catch(e=>{ if(e.name!=='AbortError') console.warn('svod-kpi', e); });
+  // Кнопка "Сумма" + деталь
+  function loadMetric(){
+    const {signal, v} = startReq('metric');
+    fetch('/svod-metric', {signal})
+      .then(r=>r.json()).then(d=>{
+        if(!stillLatest('metric', v, currentBranch)) return;
+        document.getElementById('metricVal').textContent = (d.metric||'').toString();
+      }).catch(()=>{});
   }
-  document.getElementById('svod-kpi-btn').addEventListener('click', ()=>{
-    openSvodDetail();
+  document.getElementById('metricBtn').addEventListener('click',()=>{
+    const {signal, v} = startReq('svd');
+    fetch('/svod-detail',{signal}).then(r=>r.json()).then(d=>{
+      if(!stillLatest('svd', v, currentBranch)) return;
+      const toHTML = rows => (rows||[]).map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join('');
+      document.getElementById('svod-det-private').innerHTML = toHTML(d.private);
+      document.getElementById('svod-det-high').innerHTML    = toHTML(d.highschool);
+      document.getElementById('svod-det-acad').innerHTML    = toHTML(d.academy);
+      showOnly('svod-detail-section');
+    });
   });
-
-  // NEW: Детализация Свод (A18:B22, A32:B36, A46:B50)
-  function openSvodDetail(){ showOnly('svod-detail-section'); loadSvodDetail(); }
-  function loadSvodDetail(){
-    const {signal, v} = startReq('svoddetail');
-    const b=currentBranch;
-    ['svod-d1','svod-d2','svod-d3'].forEach(id=>document.getElementById(id).innerHTML='');
-    fetch('/svod-detail', { signal })
-      .then(r=>r.json())
-      .then(d=>{ if(!stillLatest('svoddetail', v, b)) return;
-        renderBlock('svod-d1', d.p1||[]); renderBlock('svod-d2', d.p2||[]); renderBlock('svod-d3', d.p3||[]); })
-      .catch(e=>{ if(e.name!=='AbortError') console.warn('svod-detail', e); });
-  }
 
   // Helpers
   function parseNumber(s){ if(typeof s!=='string') return Number(s)||0; const cleaned=s.replace(/[^\d,.\- ]/g,'').replace(/\s/g,''); return cleaned.includes(',')&&!cleaned.includes('.')?parseFloat(cleaned.replace(',','.'))||0:parseFloat(cleaned)||0; }
@@ -457,7 +460,6 @@
   function loadSummary(mode){
     const {signal, v} = startReq('dds');
     const b=currentBranch;
-
     document.getElementById('kpi-income').textContent='…';
     document.getElementById('kpi-expense').textContent='…';
     document.getElementById('kpi-net').textContent='…';
@@ -475,7 +477,7 @@
         document.getElementById('kpi-net').textContent=`${fmt(net)} ₸`;
         buildSummaryTable(rows||[], net);
       })
-      .catch(e=>{ if(e.name!=='AbortError') console.warn('DDS error', e); });
+      .catch(()=>{});
   }
   function updatePeriodLabel(mode){
     const label=document.getElementById('period-label'); if(!label) return;
@@ -530,7 +532,7 @@
           <button class="btn-back" ${bdPage<=1?'disabled':''} onclick="bdPrev()">← Назад</button>
           <button class="btn-back" ${bdPage*bdLimit>=bdTotal?'disabled':''} onclick="bdNext()">Вперёд →</button>`;
       })
-      .catch(e=>{ if(e.name!=='AbortError') console.warn('bd error', e); });
+      .catch(()=>{});
   }
   window.bdPrev=()=>{ if(bdPage>1){ bdPage--; fetchBreakdown(); } };
   window.bdNext=()=>{ if(bdPage*bdLimit<bdTotal){ bdPage++; fetchBreakdown(); } };
@@ -557,7 +559,7 @@
         const rows=d?.rows||[];
         document.getElementById('students-table').innerHTML =
           rows.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join('');
-      }).catch(e=>{ if(e.name!=='AbortError') console.warn('students', e); });
+      }).catch(()=>{});
   }
   document.getElementById('students-tab-current').addEventListener('click',()=>{ studentsMode='current';
     document.getElementById('students-tab-current').classList.add('active'); document.getElementById('students-tab-month').classList.remove('active');
@@ -580,7 +582,7 @@
         const rows=d?.rows||[];
         document.getElementById('staff-table').innerHTML =
           rows.map(r=>`<tr><td>${r[0]??''}</td><td style="text-align:right">${r[1]??''}</td></tr>`).join('');
-      }).catch(e=>{ if(e.name!=='AbortError') console.warn('staff', e); });
+      }).catch(()=>{});
   }
   document.getElementById('staff-tab-current').addEventListener('click',()=>{ staffMode='current';
     document.getElementById('staff-tab-current').classList.add('active'); document.getElementById('staff-tab-month').classList.remove('active');
@@ -589,29 +591,62 @@
     document.getElementById('staff-tab-current').classList.remove('active'); document.getElementById('staff-tab-month').classList.add('active');
     document.getElementById('staff-month-controls').style.display='flex'; document.getElementById('staff-period-label').innerText='Отчет (за выбранный месяц)'; loadStaff(); });
 
-  // PK
+  // PK — всё в одной таблице, дата группируется
   function closePK(){ showOnly('dashboard-section'); }
   function loadPK(){
     const {signal, v} = startReq('pk');
     const b=currentBranch;
-    document.getElementById('pk-header').innerHTML='';
-    document.getElementById('pk-table').innerHTML='';
+    const tbl=document.getElementById('pk-table');
+    tbl.innerHTML='';
     fetch(`/pk?branch=${encodeURIComponent(b)}`, {signal})
       .then(r=>r.json())
       .then(d=>{
         if(!stillLatest('pk', v, b)) return;
-        const header=d?.header||[], table=d?.table||[];
-        document.getElementById('pk-header').innerHTML=header.map(r=>`<tr><td>${r[0]??''}</td><td>${r[1]??''}</td></tr>`).join('');
-        document.getElementById('pk-table').innerHTML=table.map(r=>{
-          const date=r[0]??'', inout=r[1]??'', bal=r[2]??'';
-          let balClass='', balVal=bal; const numBal=parseNumber(bal);
-          if(Number.isFinite(numBal)){ balClass=numBal<0?'pk-bad pk-neg':(numBal>=0?'pk-pos':''); balVal=fmt(numBal); }
-          let inoutHtml=''; if(inout){ const parts=inout.split('\n');
-            inoutHtml = parts.length===2 ? `<div class="pk-inout"><div class="pk-income">↑ ${parts[0]}</div><div class="pk-expense">↓ ${parts[1]}</div></div>` : inout; }
-          return `<tr><td>${date}</td><td>${inoutHtml}</td><td class="${balClass}">${balVal}</td></tr>`;
+        const table=d?.table||[];
+
+        // Заголовок таблицы
+        let html = `<tr>
+            <td><b>Дата</b></td>
+            <td><b>Приход / Расход</b></td>
+            <td style="text-align:right"><b>Остаток</b></td>
+          </tr>`;
+
+        // Рендер строк: если дата повторяется — показываем её только в первой строке группы
+        let prevDate = '';
+        html += table.map(r=>{
+          const date=(r[0]||'').trim();
+          const inout=(r[1]||'').trim();
+          const bal  =(r[2]||'').trim();
+
+          // приход/расход в две строки (↑ ↓), как было
+          let inoutHtml='';
+          if(inout){
+            const parts=inout.split('\n');
+            if(parts.length===2){
+              inoutHtml = `<div class="pk-inout"><div class="pk-income">↑ ${parts[0]}</div><div class="pk-expense">↓ ${parts[1]}</div></div>`;
+            }else{
+              inoutHtml = inout;
+            }
+          }
+
+          // оформление остатка
+          let balClass='', balVal=bal; const numBal=parseFloat((bal||'').replace(/\s/g,'').replace(',','.'));
+          if(Number.isFinite(numBal)){ balClass = numBal<0 ? 'pk-bad pk-neg' : (numBal>0 ? 'pk-pos' : ''); balVal=numBal.toLocaleString('ru-RU'); }
+
+          // дата только в первой строке «пачки»
+          const dateCell = (date && date!==prevDate) ? date : '';
+          prevDate = date || prevDate;
+
+          return `<tr>
+              <td>${dateCell}</td>
+              <td>${inoutHtml}</td>
+              <td class="${balClass}" style="text-align:right">${balVal}</td>
+            </tr>`;
         }).join('');
+
+        tbl.innerHTML = html;
       })
-      .catch(e=>{ if(e.name!=='AbortError') console.warn('pk error', e); });
+      .catch(()=>{});
   }
 
   // Reports
@@ -633,7 +668,7 @@
           </div>`).join('');
         document.getElementById('reports-list').innerHTML=html || '<div class="dash-block">Нет доступных отчётов</div>';
       })
-      .catch(e=>{ if(e.name!=='AbortError') console.warn('reports error', e); });
+      .catch(()=>{});
   }
 
   // Upload / delete
@@ -661,11 +696,10 @@
 
     showOnly('dashboard-section');
     loadSvod();
-    loadSvodKpi();
+    loadMetric();
 
     setInterval(()=>{
-      if(isVisible('dashboard-section')){ loadSvod(); loadSvodKpi(); }
-      if(isVisible('svod-detail-section')) loadSvodDetail();
+      if(isVisible('dashboard-section')) { loadSvod(); loadMetric(); }
       if(isVisible('dds-section'))      loadSummary(currentMode);
       if(isVisible('students-section'))  loadStudents();
       if(isVisible('staff-section'))     loadStaff();
@@ -676,4 +710,3 @@
 </script>
 </body>
 </html>
-
