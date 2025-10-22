@@ -3,6 +3,7 @@ from flask_caching import Cache
 from flask_compress import Compress
 import gspread
 from google.oauth2.service_account import Credentials
+from google.auth.transport.requests import AuthorizedSession
 from datetime import datetime
 from pathlib import Path
 import os, json, urllib.request
@@ -21,11 +22,16 @@ compress = Compress(app)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-SCOPES = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+# ВАЖНО: корректные SCOPES для gspread 6.x
+SCOPES = [
+    'https://www.googleapis.com/auth/spreadsheets',
+    'https://www.googleapis.com/auth/drive',
+]
 GOOGLE_SA_JSON = os.getenv("GOOGLE_SA_JSON", "").strip()
 
 @cache.memoize(timeout=600)
 def get_gspread_client():
+    """Создаём gspread.Client только из Credentials (+ явно назначаем AuthorizedSession)."""
     if GOOGLE_SA_JSON:
         try:
             creds_dict = json.loads(GOOGLE_SA_JSON)
@@ -36,7 +42,12 @@ def get_gspread_client():
             creds = Credentials.from_service_account_file(str(tmp), scopes=SCOPES)
     else:
         creds = Credentials.from_service_account_file('googlesheet.json', scopes=SCOPES)
-    return gspread.authorize(creds)
+
+    # Важно: НЕ передаём AuthorizedSession в gspread.authorize().
+    # Создаём Client из creds и явно выставляем сессию:
+    cli = gspread.Client(auth=creds)
+    cli.session = AuthorizedSession(creds)
+    return cli
 
 def get_client():
     try:
@@ -56,6 +67,7 @@ def get_spreadsheet():
         return client.open("СВОД 25-26")
     except Exception as e:
         logger.error(f"Failed to open spreadsheet, refreshing client: {e}")
+        cache.delete_memoized(get_gspread_client)
         client = get_client()
         return client.open("СВОД 25-26")
 
