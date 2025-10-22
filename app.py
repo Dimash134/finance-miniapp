@@ -2,7 +2,7 @@ from flask import Flask, jsonify, render_template, request, url_for
 from flask_caching import Cache
 from flask_compress import Compress
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 from datetime import datetime
 from pathlib import Path
 import os, json, urllib.request
@@ -21,20 +21,21 @@ compress = Compress(app)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+SCOPES = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 GOOGLE_SA_JSON = os.getenv("GOOGLE_SA_JSON", "").strip()
 
 @cache.memoize(timeout=600)
 def get_gspread_client():
     if GOOGLE_SA_JSON:
         try:
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(GOOGLE_SA_JSON), scope)
+            creds_dict = json.loads(GOOGLE_SA_JSON)
+            creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
         except Exception:
             tmp = Path("/tmp/googlesheet.json")
             tmp.write_text(GOOGLE_SA_JSON, encoding="utf-8")
-            creds = ServiceAccountCredentials.from_json_keyfile_name(str(tmp), scope)
+            creds = Credentials.from_service_account_file(str(tmp), scopes=SCOPES)
     else:
-        creds = ServiceAccountCredentials.from_json_keyfile_name('googlesheet.json', scope)
+        creds = Credentials.from_service_account_file('googlesheet.json', scopes=SCOPES)
     return gspread.authorize(creds)
 
 def get_client():
