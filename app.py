@@ -1,29 +1,62 @@
 from flask import Flask, jsonify, render_template, request, url_for
+from flask_caching import Cache
+from flask_compress import Compress
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 from pathlib import Path
 import os, json, urllib.request
+import logging
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = os.getenv("SESSION_SECRET", "dev-secret-change-in-production")
 
-# ---------- Google Sheets ----------
+cache = Cache(app, config={
+    'CACHE_TYPE': 'SimpleCache',
+    'CACHE_DEFAULT_TIMEOUT': 180
+})
+
+compress = Compress(app)
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 GOOGLE_SA_JSON = os.getenv("GOOGLE_SA_JSON", "").strip()
-if GOOGLE_SA_JSON:
+
+@cache.memoize(timeout=600)
+def get_gspread_client():
+    if GOOGLE_SA_JSON:
+        try:
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(GOOGLE_SA_JSON), scope)
+        except Exception:
+            tmp = Path("/tmp/googlesheet.json")
+            tmp.write_text(GOOGLE_SA_JSON, encoding="utf-8")
+            creds = ServiceAccountCredentials.from_json_keyfile_name(str(tmp), scope)
+    else:
+        creds = ServiceAccountCredentials.from_json_keyfile_name('googlesheet.json', scope)
+    return gspread.authorize(creds)
+
+def get_client():
     try:
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(GOOGLE_SA_JSON), scope)
-    except Exception:
-        tmp = Path("/tmp/googlesheet.json")
-        tmp.write_text(GOOGLE_SA_JSON, encoding="utf-8")
-        creds = ServiceAccountCredentials.from_json_keyfile_name(str(tmp), scope)
-else:
-    creds = ServiceAccountCredentials.from_json_keyfile_name('googlesheet.json', scope)
+        return get_gspread_client()
+    except Exception as e:
+        logger.error(f"Failed to get gspread client: {e}")
+        cache.delete_memoized(get_gspread_client)
+        return get_gspread_client()
 
-client = gspread.authorize(creds)
+client = None
 
-# Книга "СВОД 25-26"
-spreadsheet = client.open("СВОД 25-26")
+def get_spreadsheet():
+    global client
+    if client is None:
+        client = get_client()
+    try:
+        return client.open("СВОД 25-26")
+    except Exception as e:
+        logger.error(f"Failed to open spreadsheet, refreshing client: {e}")
+        client = get_client()
+        return client.open("СВОД 25-26")
 
 def get_worksheet_names(branch: str):
     branch = (branch or "Private").strip()
@@ -34,15 +67,22 @@ def get_worksheet_names(branch: str):
     }
     return mapping.get(branch, mapping["Private"])
 
-# TelegramBot-таблицы (ДДС/баланс/кошельки)
 DDS_SOURCES = {
     "Private":    {"key":"1FIBAlCkUL2qT9ztd3gfH5kOd3eHLKE53eYKLJzD75dw", "sheet":"TelegramBotPrivate"},
     "Highschool": {"key":"1N_8nASKsuLaQPbs8BuonLGn5tkjM803X--JyC2_OUt8", "sheet":"TelegramBotHighschool"},
     "Academy":    {"key":"1NkomZvK6mw-QBa7PWW8MhnFN7DdJ_r2a9PSfg095L4Y", "sheet":"TelegramBotAcademy"},
 }
+
 def open_dds_sheet(branch: str):
     src = DDS_SOURCES.get(branch, DDS_SOURCES["Private"])
-    return client.open_by_key(src["key"]).worksheet(src["sheet"])
+    cli = get_client()
+    try:
+        return cli.open_by_key(src["key"]).worksheet(src["sheet"])
+    except Exception as e:
+        logger.error(f"Failed to open DDS sheet: {e}")
+        cache.delete_memoized(get_gspread_client)
+        cli = get_client()
+        return cli.open_by_key(src["key"]).worksheet(src["sheet"])
 
 DDS_RANGES = {
     'текущий': ['A3:B15','A17:B21','A23:B25'],
@@ -50,13 +90,14 @@ DDS_RANGES = {
     'месяц':   ['G3:H15','G17:H21','G23:H25']
 }
 
-# ---------- РАСШИФРОВКА ----------
 BREAKDOWN_SHEETS = {"текущий":"Расшифровка ДДС сегодня","месяц":"Расшифровка ДДС на месяц","дата":"Расшифровка ДДС на дату"}
-BD_RANGES = ["B3:B1000","D3:D1000","E3:E1000","F3:F1000"]  # amount, counterparty, purpose, article
+BD_RANGES = ["B3:B1000","D3:D1000","E3:E1000","F3:F1000"]
 
-def read_breakdown(branch: str, scope: str):
+@cache.memoize(timeout=120)
+def read_breakdown_cached(branch: str, scope: str):
     src = DDS_SOURCES.get(branch, DDS_SOURCES["Private"])
-    ws = client.open_by_key(src["key"]).worksheet(BREAKDOWN_SHEETS.get(scope,"Расшифровка ДДС сегодня"))
+    cli = get_client()
+    ws = cli.open_by_key(src["key"]).worksheet(BREAKDOWN_SHEETS.get(scope,"Расшифровка ДДС сегодня"))
     b_amount, b_counterparty, b_purpose, b_article = ws.batch_get(BD_RANGES)
     max_len = max(len(b_amount), len(b_article), len(b_counterparty), len(b_purpose))
 
@@ -83,51 +124,58 @@ def breakdown():
         page   = max(1, int(request.args.get("page",1)))
         limit  = max(1, min(500, int(request.args.get("limit",100))))
         search = (request.args.get("search","") or "").strip().lower()
-        items = read_breakdown(branch, scope)
+        items = read_breakdown_cached(branch, scope)
         if search:
-            items=[x for x in items if any(search in (x[k] or "").lower() for k in ("counterparty","purpose","article"))]
+            items=[x for x in items if any(search in str(x.get(k) or "").lower() for k in ("counterparty","purpose","article"))]
         total=len(items); start=(page-1)*limit
         return jsonify({"branch":branch,"scope":scope,"total":total,"data":items[start:start+limit]})
     except Exception as e:
+        logger.error(f"Error in breakdown: {e}")
         return jsonify({"error":str(e)}),500
 
-# ---------- «Свод» на главной ----------
 SVOD_KEY = "1FIBAlCkUL2qT9ztd3gfH5kOd3eHLKE53eYKLJzD75dw"
 
 @app.route('/svod')
+@cache.cached(timeout=180, query_string=True)
 def svod():
     try:
-        ws = client.open_by_key(SVOD_KEY).worksheet("Свод")
+        cli = get_client()
+        ws = cli.open_by_key(SVOD_KEY).worksheet("Свод")
         p1, p2, p3 = ws.batch_get(["A2:B5","D2:E7","G2:H12"])
         return jsonify({"p1":p1 or [], "p2":p2 or [], "p3":p3 or []})
     except Exception as e:
+        logger.error(f"Error in svod: {e}")
         return jsonify({"error":str(e)}),500
 
-# Кнопка «Сумма» и детальная страница «Свод»
 @app.route('/svod-metric')
+@cache.cached(timeout=180, query_string=True)
 def svod_metric():
     try:
-        ws = client.open_by_key(SVOD_KEY).worksheet("Свод")
+        cli = get_client()
+        ws = cli.open_by_key(SVOD_KEY).worksheet("Свод")
         metric = (ws.acell("B6").value or "").strip()
         return jsonify({"metric":metric})
     except Exception as e:
+        logger.error(f"Error in svod-metric: {e}")
         return jsonify({"error":str(e)}),500
 
 @app.route('/svod-detail')
+@cache.cached(timeout=180, query_string=True)
 def svod_detail():
-    """Три блока для Private / Highschool / Academy"""
     try:
-        ws = client.open_by_key(SVOD_KEY).worksheet("Свод")
+        cli = get_client()
+        ws = cli.open_by_key(SVOD_KEY).worksheet("Свод")
         pvt, high, acad = ws.batch_get(["A18:B22", "A32:B36", "A46:B50"])
         return jsonify({"private":pvt or [], "highschool":high or [], "academy":acad or []})
     except Exception as e:
+        logger.error(f"Error in svod-detail: {e}")
         return jsonify({"error":str(e)}),500
 
-# ---------- Отчёты ----------
 REPORTS_ROOT = Path(os.getenv("REPORTS_DIR","static/reports")); REPORTS_ROOT.mkdir(parents=True, exist_ok=True)
 RU_MONTHS = {"01":"Январь","02":"Февраль","03":"Март","04":"Апрель","05":"Май","06":"Июнь","07":"Июль","08":"Август","09":"Сентябрь","10":"Октябрь","11":"Ноябрь","12":"Декабрь"}
 
 @app.route('/reports')
+@cache.cached(timeout=60, query_string=True)
 def list_reports():
     res=[]
     if REPORTS_ROOT.exists():
@@ -147,6 +195,7 @@ def upload_report():
     if not file.filename.lower().endswith(".pdf"): return jsonify({"error":"Только .pdf"}),400
     dst = REPORTS_ROOT / ym; dst.mkdir(parents=True, exist_ok=True)
     safe = file.filename.replace("/","_").replace("\\","_"); file.save(dst/safe)
+    cache.clear()
     return jsonify({"status":"ок"})
 
 @app.route('/reports/delete', methods=['POST'])
@@ -159,23 +208,31 @@ def delete_report():
     try:
         os.remove(target); p=target.parent
         if p.exists() and not any(p.iterdir()): p.rmdir()
+        cache.clear()
         return jsonify({"status":"ok"})
     except Exception as e:
+        logger.error(f"Error in delete report: {e}")
         return jsonify({"error":str(e)}),500
 
-# ---------- БАЗОВЫЕ СТРАНИЦЫ ----------
 @app.route('/')
 def home(): return 'Finance MiniApp работает!'
+
 @app.route('/app')
 def app_page(): return render_template("index.html")
 
-# ---------- ДДС ----------
 @app.route('/dds')
+@cache.cached(timeout=120, query_string=True)
 def get_dds_data():
-    sheet = spreadsheet.worksheet("ДДС:факт Private")
-    return jsonify(sheet.get_all_values())
+    try:
+        spreadsheet = get_spreadsheet()
+        sheet = spreadsheet.worksheet("ДДС:факт Private")
+        return jsonify(sheet.get_all_values())
+    except Exception as e:
+        logger.error(f"Error in dds: {e}")
+        return jsonify({"error":str(e)}),500
 
 @app.route('/balance')
+@cache.cached(timeout=120, query_string=True)
 def get_balance():
     try:
         branch = request.args.get("branch","Private"); ws = open_dds_sheet(branch)
@@ -188,9 +245,11 @@ def get_balance():
             if name or val: wallets.append([name, val])
         return jsonify({"branch":branch,"worksheet":ws.title,"balance":balance,"wallets":wallets})
     except Exception as e:
+        logger.error(f"Error in balance: {e}")
         return jsonify({"error":str(e)}),500
 
 @app.route('/summary')
+@cache.cached(timeout=120, query_string=True)
 def get_summary():
     try:
         mode = request.args.get('mode','текущий'); branch = request.args.get("branch","Private")
@@ -200,60 +259,72 @@ def get_summary():
             result.extend(sheet.get(cell_range))
         return jsonify(result)
     except Exception as e:
+        logger.error(f"Error in summary: {e}")
         return jsonify({"error":str(e)}),500
 
-# ---------- Ученики ----------
 @app.route('/students')
+@cache.cached(timeout=120, query_string=True)
 def students_summary():
     try:
         branch = request.args.get("branch","Private"); mode = request.args.get("mode","current")
+        spreadsheet = get_spreadsheet()
         ws = spreadsheet.worksheet(get_worksheet_names(branch)["students"])
         rng = "A3:B7" if mode=="current" else "C3:D7" if mode=="month" else None
         if not rng: return jsonify({"error":"Некорректный режим"}),400
         return jsonify({"branch":branch,"mode":mode,"rows":ws.get(rng)})
     except Exception as e:
+        logger.error(f"Error in students: {e}")
         return jsonify({"error":str(e)}),500
 
 @app.route('/students-set-month')
 def students_set_month():
     try:
-        branch = request.args.get("branch","Private"); value = request.args.get("value")
+        branch = request.args.get("branch","Private"); value = request.args.get("value","")
         if not value: return jsonify({"error":"Не задан месяц"}),400
-        spreadsheet.worksheet(get_worksheet_names(branch)["students"]).update_acell("D2", value)
+        spreadsheet = get_spreadsheet()
+        spreadsheet.worksheet(get_worksheet_names(branch)["students"]).update_acell("D2", str(value))
+        cache.clear()
         return jsonify({"status":"ok","written":value,"branch":branch})
     except Exception as e:
+        logger.error(f"Error in students-set-month: {e}")
         return jsonify({"error":str(e)}),500
 
-# ---------- Сотрудники ----------
 @app.route('/staff')
+@cache.cached(timeout=120, query_string=True)
 def staff_summary():
     try:
         branch = request.args.get("branch","Private"); mode = request.args.get("mode","current")
+        spreadsheet = get_spreadsheet()
         ws = spreadsheet.worksheet(get_worksheet_names(branch)["staff"])
         rng = "A3:B13" if mode=="current" else "C3:D13" if mode=="month" else None
         if not rng: return jsonify({"error":"Некорректный режим"}),400
         return jsonify({"branch":branch,"mode":mode,"rows":ws.get(rng)})
     except Exception as e:
+        logger.error(f"Error in staff: {e}")
         return jsonify({"error":str(e)}),500
 
 @app.route('/staff-set-month')
 def staff_set_month():
     try:
-        branch = request.args.get("branch","Private"); value = request.args.get("value")
+        branch = request.args.get("branch","Private"); value = request.args.get("value","")
         if not value: return jsonify({"error":"Не задан месяц"}),400
-        spreadsheet.worksheet(get_worksheet_names(branch)["staff"]).update_acell("D1", value)
+        spreadsheet = get_spreadsheet()
+        spreadsheet.worksheet(get_worksheet_names(branch)["staff"]).update_acell("D1", str(value))
+        cache.clear()
         return jsonify({"status":"ok","written":value,"branch":branch})
     except Exception as e:
+        logger.error(f"Error in staff-set-month: {e}")
         return jsonify({"error":str(e)}),500
 
-# ---------- Установка даты / месяца ----------
 @app.route('/set-date')
 def set_date():
     value = request.args.get('value'); branch = request.args.get("branch","Private")
     try:
         open_dds_sheet(branch).update_acell("F1", value)
+        cache.clear()
         return jsonify({"status":"ok","written":value,"branch":branch})
     except Exception as e:
+        logger.error(f"Error in set-date: {e}")
         return jsonify({"error":str(e)}),500
 
 @app.route('/set-month')
@@ -261,18 +332,18 @@ def set_month():
     value = request.args.get('value'); branch = request.args.get("branch","Private")
     try:
         open_dds_sheet(branch).update_acell("H1", value)
+        cache.clear()
         return jsonify({"status":"ok","written":value,"branch":branch})
     except Exception as e:
+        logger.error(f"Error in set-month: {e}")
         return jsonify({"error":str(e)}),500
 
-# ---------- Платёжный календарь ----------
 @app.route('/pk')
+@cache.cached(timeout=120, query_string=True)
 def pk():
-    """
-    Возвращаем структуру как раньше, но UI теперь рисует всё одной таблицей.
-    """
     try:
         branch = request.args.get("branch","Private")
+        spreadsheet = get_spreadsheet()
         sheet = spreadsheet.worksheet("PKBot")
         header_ranges = {"Private":"A1:B3","Highschool":"F1:G3","Academy":"K1:L3"}
         table_ranges  = {"Private":"A4:C63","Highschool":"F4:H63","Academy":"K4:M63"}
@@ -280,13 +351,15 @@ def pk():
         table  = sheet.get(table_ranges.get(branch,"A4:C63"))
         return jsonify({"branch":branch,"header":header,"table":table})
     except Exception as e:
+        logger.error(f"Error in pk: {e}")
         return jsonify({"error":str(e)}),500
 
-# ---------- Тренд остатка ----------
 @app.route('/balance-trend')
+@cache.cached(timeout=180, query_string=True)
 def balance_trend():
     try:
         branch = request.args.get("branch","Private")
+        spreadsheet = get_spreadsheet()
         ws = spreadsheet.worksheet(get_worksheet_names(branch)["money"])
         rows = ws.get("J2:K200"); labels=[]; values=[]
         for r in rows:
@@ -302,13 +375,28 @@ def balance_trend():
             except Exception: values.append(0.0)
         return jsonify({"labels":labels,"values":values,"branch":branch})
     except Exception as e:
+        logger.error(f"Error in balance-trend: {e}")
+        return jsonify({"error":str(e)}),500
+
+@app.route('/cache/clear', methods=['POST'])
+def clear_cache():
+    try:
+        cache.clear()
+        cache.delete_memoized(get_gspread_client)
+        cache.delete_memoized(read_breakdown_cached)
+        return jsonify({"status":"ok","message":"Кэш очищен"})
+    except Exception as e:
+        logger.error(f"Error clearing cache: {e}")
         return jsonify({"error":str(e)}),500
 
 @app.after_request
 def apply_headers(resp):
-    resp.headers["ngrok-skip-browser-warning"]="true"; return resp
+    resp.headers["ngrok-skip-browser-warning"]="true"
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
-# -------- Telegram webhook --------
 WEBAPP_URL = os.getenv("WEBAPP_URL","https://finance-miniapp.onrender.com/app").strip()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN","").strip()
 TG_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}" if TELEGRAM_TOKEN else ""
