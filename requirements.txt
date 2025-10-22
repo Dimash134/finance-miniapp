@@ -1,8 +1,7 @@
 Flask==3.0.3
 Flask-Caching==2.1.0
 Flask-Compress==1.14
-gspread==6.1.2
-google-auth>=2.32.0
-google-auth-oauthlib>=1.2.0
 gunicorn==22.0.0
-python-telegram-bot==20.7
+
+gspread==6.1.2
+google-auth==2.23.0
