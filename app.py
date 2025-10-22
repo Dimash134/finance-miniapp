@@ -31,7 +31,7 @@ GOOGLE_SA_JSON = os.getenv("GOOGLE_SA_JSON", "").strip()
 
 @cache.memoize(timeout=600)
 def get_gspread_client():
-    """Создаём gspread.Client только из Credentials (+ явно назначаем AuthorizedSession)."""
+    """Создаём корректный gspread клиент без ручной AuthorizedSession."""
     if GOOGLE_SA_JSON:
         try:
             creds_dict = json.loads(GOOGLE_SA_JSON)
@@ -41,13 +41,11 @@ def get_gspread_client():
             tmp.write_text(GOOGLE_SA_JSON, encoding="utf-8")
             creds = Credentials.from_service_account_file(str(tmp), scopes=SCOPES)
     else:
-        creds = Credentials.from_service_account_file('googlesheet.json', scopes=SCOPES)
+        creds = Credentials.from_service_account_file("googlesheet.json", scopes=SCOPES)
 
-    # Важно: НЕ передаём AuthorizedSession в gspread.authorize().
-    # Создаём Client из creds и явно выставляем сессию:
-    cli = gspread.Client(auth=creds)
-    cli.session = AuthorizedSession(creds)
-    return cli
+    # ✅ Правильно: просто авторизация через gspread, без AuthorizedSession
+    client = gspread.authorize(creds)
+    return client
 
 def get_client():
     try:
@@ -436,3 +434,4 @@ def telegram_webhook():
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT","5000")))
+
