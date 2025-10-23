@@ -38,7 +38,7 @@ def open_sheet(key, sheet):
     return get_gspread_client().open_by_key(key).worksheet(sheet)
 
 # Книга "СВОД 25-26"
-spreadsheet = client.open("СВОД 25-26")
+spreadsheet = get_gspread_client().open("СВОД 25-26")
 
 def get_worksheet_names(branch: str):
     branch = (branch or "Private").strip()
