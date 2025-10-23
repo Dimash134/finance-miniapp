@@ -13,7 +13,43 @@ import gspread, json, os, urllib.request, logging
 app = Flask(__name__)
 Compress(app)
 
+# Cache init — ДО всех @cache.memoize
+redis_url = os.getenv("REDIS_URL", "").strip()
+cache_cfg = {"CACHE_DEFAULT_TIMEOUT": 300}
+if redis_url:
+    cache_cfg.update({"CACHE_TYPE": "redis", "CACHE_REDIS_URL": redis_url})
+else:
+    cache_cfg.update({"CACHE_TYPE": "simple"})
+cache = Cache(app, config=cache_cfg)
+
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet", logger=False, engineio_logger=False)
+
+# ---------- Кэшируемые функции ----------
+@cache.memoize(300)
+def get_svod():
+    ws = open_sheet(SPREAD_KEY_MAIN, "Свод")
+    p1, p2, p3 = ws.batch_get(["A2:B5","D2:E7","G2:H12"])
+    return {"p1":p1,"p2":p2,"p3":p3}
+
+@cache.memoize(300)
+def get_metric():
+    ws = open_sheet(SPREAD_KEY_MAIN, "Свод")
+    return (ws.acell("B6").value or "").strip()
+
+@cache.memoize(300)
+def get_svod_detail():
+    ws = open_sheet(SPREAD_KEY_MAIN, "Свод")
+    pvt, high, acad = ws.batch_get(["A18:B22", "A32:B36", "A46:B50"])
+    return {"private":pvt,"highschool":high,"academy":acad}
+
+@cache.memoize(300)
+def get_pk(branch):
+    ws = get_gspread_client().open("СВОД 25-26").worksheet("PKBot")
+    header_ranges = {"Private":"A1:B3","Highschool":"F1:G3","Academy":"K1:L3"}
+    table_ranges  = {"Private":"A4:C63","Highschool":"F4:H63","Academy":"K4:M63"}
+    header = ws.get(header_ranges.get(branch,"A1:B3"))
+    table  = ws.get(table_ranges.get(branch,"A4:C63"))
+    return {"header":header,"table":table}
 
 # ---------- Google Sheets ----------
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -57,7 +93,7 @@ DDS_SOURCES = {
 }
 def open_dds_sheet(branch: str):
     src = DDS_SOURCES.get(branch, DDS_SOURCES["Private"])
-    return client.open_by_key(src["key"]).worksheet(src["sheet"])
+    return get_gspread_client().open_by_key(src["key"]).worksheet(src["sheet"])
 
 DDS_RANGES = {
     'текущий': ['A3:B15','A17:B21','A23:B25'],
@@ -71,7 +107,7 @@ BD_RANGES = ["B3:B1000","D3:D1000","E3:E1000","F3:F1000"]  # amount, counterpart
 
 def read_breakdown(branch: str, scope: str):
     src = DDS_SOURCES.get(branch, DDS_SOURCES["Private"])
-    ws = client.open_by_key(src["key"]).worksheet(BREAKDOWN_SHEETS.get(scope,"Расшифровка ДДС сегодня"))
+    ws = get_gspread_client().open_by_key(src["key"]).worksheet(BREAKDOWN_SHEETS.get(scope,"Расшифровка ДДС сегодня"))
     b_amount, b_counterparty, b_purpose, b_article = ws.batch_get(BD_RANGES)
     max_len = max(len(b_amount), len(b_article), len(b_counterparty), len(b_purpose))
 
@@ -112,7 +148,7 @@ SVOD_KEY = "1FIBAlCkUL2qT9ztd3gfH5kOd3eHLKE53eYKLJzD75dw"
 @app.route('/svod')
 def svod():
     try:
-        ws = client.open_by_key(SVOD_KEY).worksheet("Свод")
+        ws = get_gspread_client().open_by_key(SVOD_KEY).worksheet("Свод")
         p1, p2, p3 = ws.batch_get(["A2:B5","D2:E7","G2:H12"])
         return jsonify({"p1":p1 or [], "p2":p2 or [], "p3":p3 or []})
     except Exception as e:
@@ -122,7 +158,7 @@ def svod():
 @app.route('/svod-metric')
 def svod_metric():
     try:
-        ws = client.open_by_key(SVOD_KEY).worksheet("Свод")
+        ws = get_gspread_client().open_by_key(SVOD_KEY).worksheet("Свод")
         metric = (ws.acell("B6").value or "").strip()
         return jsonify({"metric":metric})
     except Exception as e:
@@ -132,7 +168,7 @@ def svod_metric():
 def svod_detail():
     """Три блока для Private / Highschool / Academy"""
     try:
-        ws = client.open_by_key(SVOD_KEY).worksheet("Свод")
+        ws = get_gspread_client().open_by_key(SVOD_KEY).worksheet("Свод")
         pvt, high, acad = ws.batch_get(["A18:B22", "A32:B36", "A46:B50"])
         return jsonify({"private":pvt or [], "highschool":high or [], "academy":acad or []})
     except Exception as e:
@@ -296,33 +332,6 @@ def pk():
         return jsonify({"branch":branch,"header":header,"table":table})
     except Exception as e:
         return jsonify({"error":str(e)}),500
-
-# ---------- Кэшируемые функции ----------
-@cache.memoize(300)
-def get_svod():
-    ws = open_sheet(SPREAD_KEY_MAIN, "Свод")
-    p1, p2, p3 = ws.batch_get(["A2:B5","D2:E7","G2:H12"])
-    return {"p1":p1,"p2":p2,"p3":p3}
-
-@cache.memoize(300)
-def get_metric():
-    ws = open_sheet(SPREAD_KEY_MAIN, "Свод")
-    return (ws.acell("B6").value or "").strip()
-
-@cache.memoize(300)
-def get_svod_detail():
-    ws = open_sheet(SPREAD_KEY_MAIN, "Свод")
-    pvt, high, acad = ws.batch_get(["A18:B22", "A32:B36", "A46:B50"])
-    return {"private":pvt,"highschool":high,"academy":acad}
-
-@cache.memoize(300)
-def get_pk(branch):
-    ws = get_gspread_client().open("СВОД 25-26").worksheet("PKBot")
-    header_ranges = {"Private":"A1:B3","Highschool":"F1:G3","Academy":"K1:L3"}
-    table_ranges  = {"Private":"A4:C63","Highschool":"F4:H63","Academy":"K4:M63"}
-    header = ws.get(header_ranges.get(branch,"A1:B3"))
-    table  = ws.get(table_ranges.get(branch,"A4:C63"))
-    return {"header":header,"table":table}
 
 # ---------- Тренд остатка ----------
 @app.route('/balance-trend')
