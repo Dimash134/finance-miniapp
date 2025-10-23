@@ -1,26 +1,41 @@
+# ---------- Finance MiniApp (оптимизированная версия) ----------
 from flask import Flask, jsonify, render_template, request, url_for
-import gspread
+from flask_caching import Cache
+from flask_compress import Compress
+from flask_socketio import SocketIO, emit
+from apscheduler.schedulers.background import BackgroundScheduler
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 from pathlib import Path
-import os, json, urllib.request
+import gspread, json, os, urllib.request, logging
 
+# ---------- Инициализация ----------
 app = Flask(__name__)
+Compress(app)
+
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet", logger=False, engineio_logger=False)
 
 # ---------- Google Sheets ----------
-scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 GOOGLE_SA_JSON = os.getenv("GOOGLE_SA_JSON", "").strip()
-if GOOGLE_SA_JSON:
-    try:
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(GOOGLE_SA_JSON), scope)
-    except Exception:
-        tmp = Path("/tmp/googlesheet.json")
-        tmp.write_text(GOOGLE_SA_JSON, encoding="utf-8")
-        creds = ServiceAccountCredentials.from_json_keyfile_name(str(tmp), scope)
-else:
-    creds = ServiceAccountCredentials.from_json_keyfile_name('googlesheet.json', scope)
 
-client = gspread.authorize(creds)
+def get_gspread_client():
+    """Создаём клиент Google Sheets один раз и переиспользуем"""
+    if not hasattr(get_gspread_client, "_client"):
+        if GOOGLE_SA_JSON:
+            try:
+                creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(GOOGLE_SA_JSON), scope)
+            except Exception:
+                tmp = Path("/tmp/googlesheet.json")
+                tmp.write_text(GOOGLE_SA_JSON, encoding="utf-8")
+                creds = ServiceAccountCredentials.from_json_keyfile_name(str(tmp), scope)
+        else:
+            creds = ServiceAccountCredentials.from_json_keyfile_name("googlesheet.json", scope)
+        get_gspread_client._client = gspread.authorize(creds)
+    return get_gspread_client._client
+
+def open_sheet(key, sheet):
+    return get_gspread_client().open_by_key(key).worksheet(sheet)
 
 # Книга "СВОД 25-26"
 spreadsheet = client.open("СВОД 25-26")
@@ -282,6 +297,33 @@ def pk():
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
+# ---------- Кэшируемые функции ----------
+@cache.memoize(300)
+def get_svod():
+    ws = open_sheet(SPREAD_KEY_MAIN, "Свод")
+    p1, p2, p3 = ws.batch_get(["A2:B5","D2:E7","G2:H12"])
+    return {"p1":p1,"p2":p2,"p3":p3}
+
+@cache.memoize(300)
+def get_metric():
+    ws = open_sheet(SPREAD_KEY_MAIN, "Свод")
+    return (ws.acell("B6").value or "").strip()
+
+@cache.memoize(300)
+def get_svod_detail():
+    ws = open_sheet(SPREAD_KEY_MAIN, "Свод")
+    pvt, high, acad = ws.batch_get(["A18:B22", "A32:B36", "A46:B50"])
+    return {"private":pvt,"highschool":high,"academy":acad}
+
+@cache.memoize(300)
+def get_pk(branch):
+    ws = get_gspread_client().open("СВОД 25-26").worksheet("PKBot")
+    header_ranges = {"Private":"A1:B3","Highschool":"F1:G3","Academy":"K1:L3"}
+    table_ranges  = {"Private":"A4:C63","Highschool":"F4:H63","Academy":"K4:M63"}
+    header = ws.get(header_ranges.get(branch,"A1:B3"))
+    table  = ws.get(table_ranges.get(branch,"A4:C63"))
+    return {"header":header,"table":table}
+
 # ---------- Тренд остатка ----------
 @app.route('/balance-trend')
 def balance_trend():
@@ -332,6 +374,33 @@ def telegram_webhook():
         kb={"inline_keyboard":[[{"text":"Открыть Финансовое Приложение","web_app":{"url":WEBAPP_URL}}]]}
         tg_send_message(chat_id,"Добро пожаловать!", reply_markup=kb)
     return jsonify(ok=True)
+
+# ---------- Background Refresh ----------
+scheduler = BackgroundScheduler(daemon=True)
+def refresh_cache():
+    try:
+        cache.delete_memoized(get_svod)
+        cache.delete_memoized(get_metric)
+        cache.delete_memoized(get_svod_detail)
+        for br in DDS_SOURCES.keys():
+            cache.delete_memoized(get_pk, br)
+        # пересоздать кэш
+        get_svod(); get_metric(); get_svod_detail()
+        for br in DDS_SOURCES.keys(): get_pk(br)
+        socketio.emit("refresh", {"status":"ok"})
+        logging.info("✅ Кэш обновлён")
+    except Exception as e:
+        logging.error(f"Ошибка обновления кэша: {e}")
+
+scheduler.add_job(refresh_cache, "interval", minutes=5)
+scheduler.start()
+
+# ---------- After-request headers ----------
+@app.after_request
+def apply_headers(resp):
+    resp.headers["ngrok-skip-browser-warning"] = "true"
+    resp.headers["Cache-Control"] = "public, max-age=60"
+    return resp
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT","5000")))
